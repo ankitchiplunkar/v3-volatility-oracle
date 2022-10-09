@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.4;
+pragma solidity =0.7.6;
 
 import "hardhat/console.sol";
-
-error GreeterError();
 
 contract Greeter {
     string public greeting;
@@ -23,6 +21,6 @@ contract Greeter {
     }
 
     function throwError() external pure {
-        revert GreeterError();
+        revert("GreetError");
     }
 }
