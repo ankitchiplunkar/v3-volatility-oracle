@@ -14,8 +14,6 @@ contract VolOracle {
         int56 tickCumulative;
         // the tick square accumulator, i.e. tick * tick * time elapsed since the oracle was first initialized
         uint112 tickSquareCumulative;
-        // whether or not the observation is initialized
-        bool initialized;
     }
 
 
@@ -27,7 +25,7 @@ contract VolOracle {
     struct VolOracleState {
         // @dev Stores Observation arrays for each pool
         // TODO: can we use constant here
-        VolObservation[] observations;
+        VolObservation[345600] observations;
         // @dev Stores lastBlockTimestamp when the observation was initialized for the pool
         uint256 lastBlockTimestamp;
         uint256 lastObservationIndex;
@@ -38,7 +36,7 @@ contract VolOracle {
 
 
     function initPool(address _pool) external {
-        require(oracleStates[_pool].observations.length == 0, "Pool already initialized");
+        require(oracleStates[_pool].lastBlockTimestamp == 0, "Pool already initialized");
         // only initialize pools which have max cardinality
         (, , uint16 observationIndex, uint16 observationCardinality, , , ) = IUniswapV3Pool(_pool).slot0();
         require(
@@ -47,12 +45,8 @@ contract VolOracle {
         );
         // TODO: if pool is not at max cardinality then grow it
         // initializing the pool to max size
-        oracleStates[_pool] = VolOracleState(
-            // TODO: can we initialize storage array here?
-            new VolObservation[](OBSERVATION_SIZE),
-            block.timestamp,
-            observationIndex
-        );
+        oracleStates[_pool].lastBlockTimestamp = block.timestamp;
+        oracleStates[_pool].lastObservationIndex = observationIndex;
     }
 
     // returns the start and end indexes for filling intermediate values
