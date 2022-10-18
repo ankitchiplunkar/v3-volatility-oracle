@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier
 pragma solidity >=0.8.4;
 
 import { IUniswapV3Pool } from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
@@ -33,7 +33,6 @@ contract VolOracle {
 
     // @dev Stores Observation arrays for each pool
     mapping(address => VolOracleState) public oracleStates;
-
 
     function initPool(address _pool) external {
         require(oracleStates[_pool].lastBlockTimestamp == 0, "Pool already initialized");
