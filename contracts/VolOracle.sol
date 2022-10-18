@@ -16,7 +16,6 @@ contract VolOracle {
         uint112 tickSquareCumulative;
     }
 
-
     // observation size
     // stores 30 days of data (with some buffer)
     uint256 public constant OBSERVATION_SIZE = 345600;
@@ -38,10 +37,7 @@ contract VolOracle {
         require(oracleStates[_pool].lastBlockTimestamp == 0, "Pool already initialized");
         // only initialize pools which have max cardinality
         (, , uint16 observationIndex, uint16 observationCardinality, , , ) = IUniswapV3Pool(_pool).slot0();
-        require(
-            observationCardinality == UNIV3_MAX_CARDINALITY,
-            "Pool not at max cardinality"
-        );
+        require(observationCardinality == UNIV3_MAX_CARDINALITY, "Pool not at max cardinality");
         // TODO: if pool is not at max cardinality then grow it
         // initializing the pool to max size
         oracleStates[_pool].lastBlockTimestamp = block.timestamp;
