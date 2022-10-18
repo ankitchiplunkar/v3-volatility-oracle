@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier
 pragma solidity >=0.8.4;
 
 import { Observation } from "@uniswap/v3-core/contracts/libraries/Oracle.sol";
@@ -13,7 +13,7 @@ contract VolOracle {
     uint256 public constant OBSERVATION_SIZE = 345600;
     uint256 public constant UNIV3_MAX_CARDINALITY = 65535;
     // @dev Stores Observation arrays for each pool
-    mapping(address => Observation[UNIV3_MAX_CARDINALITY]) public observations;
+    mapping(address => Observation[OBSERVATION_SIZE]) public observations;
     // @dev Stores lastBlockTimestamp when the observation was initialized for the pool
     mapping(address => uint256) public lastBlockTimestamps;
     mapping(address => uint256) public lastObservationIndex;
