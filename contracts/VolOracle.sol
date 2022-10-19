@@ -27,7 +27,10 @@ contract VolOracle {
         VolObservation[345600] observations;
         // @dev Stores lastBlockTimestamp when the observation was initialized for the pool
         uint256 lastBlockTimestamp;
+        // @dev last observation index in uniswap pool
         uint256 lastObservationIndex;
+        // @dev observation index for volatility observations
+        uint256 observationIndex;
     }
 
     // @dev Stores Observation arrays for each pool
@@ -36,20 +39,52 @@ contract VolOracle {
     function initPool(address _pool) external {
         require(oracleStates[_pool].lastBlockTimestamp == 0, "Pool already initialized");
         // only initialize pools which have max cardinality
-        (, , uint16 observationIndex, uint16 observationCardinality, , , ) = IUniswapV3Pool(_pool).slot0();
+        IUniswapV3Pool uniPool = IUniswapV3Pool(_pool);
+        (, , uint16 observationIndex, uint16 observationCardinality, , , ) = uniPool.slot0();
         require(observationCardinality == UNIV3_MAX_CARDINALITY, "Pool not at max cardinality");
         // TODO: if pool is not at max cardinality then grow it
         // initializing the pool to max size
-        oracleStates[_pool].lastBlockTimestamp = block.timestamp;
-        oracleStates[_pool].lastObservationIndex = observationIndex;
+        VolOracleState storage oracleState = oracleStates[_pool];
+        (uint32 blockTimestamp, int56 tickCumulative, ,) = uniPool.observations(observationIndex);
+        // set the tickSquareCumulative to 0 during initialization
+        oracleState.observations[0] = VolObservation(blockTimestamp, tickCumulative, 0);
+        // TODO: should we use current blocktimestamp or the last observation timestamp from uni here
+        oracleState.lastBlockTimestamp = block.timestamp;
+        oracleState.lastObservationIndex = observationIndex;
+        oracleState.observationIndex = 0;
     }
 
     // returns the start and end indexes for filling intermediate values
     function fetchIntermediateIndexes(address _pool) public view returns (uint256 startIndex, uint256 endIndex) {
         (, , uint16 latestPoolObservationIndex, , , , ) = IUniswapV3Pool(_pool).slot0();
         uint256 lastObservationIndex = oracleStates[_pool].lastObservationIndex;
+        // TODO: we are assuming the oracle won't be down for a long time (>7 days here)
+        // both inclusive
         if (latestPoolObservationIndex > lastObservationIndex)
             return (lastObservationIndex + 1, latestPoolObservationIndex);
-        return (latestPoolObservationIndex + UNIV3_MAX_CARDINALITY, lastObservationIndex);
+        return (lastObservationIndex + 1, latestPoolObservationIndex + UNIV3_MAX_CARDINALITY);
     }
+
+    function fillInObservations(address _pool) external {
+        (uint256 startIndex, uint256 endIndex) = fetchIntermediateIndexes(_pool);
+        IUniswapV3Pool uniPool = IUniswapV3Pool(_pool);
+        VolOracleState storage volOracleState = oracleStates[_pool];
+        uint volObservationIndex = volOracleState.observationIndex;
+        for (uint poolObservationIndex = startIndex; poolObservationIndex <= endIndex; poolObservationIndex++) {
+            (uint32 blockTimestamp, int56 tickCumulative, ,) = uniPool.observations(poolObservationIndex % UNIV3_MAX_CARDINALITY);
+            VolObservation memory prevObservation = volOracleState.observations[volObservationIndex];
+            uint32 timeDelta = blockTimestamp - prevObservation.blockTimestamp;
+            int56 tickDelta = tickCumulative - prevObservation.tickCumulative;
+            uint112 tickSquareDelta = uint112(int112((tickDelta / int56(uint56(timeDelta)))** 2));
+            volObservationIndex = (volObservationIndex + 1) % OBSERVATION_SIZE;
+            volOracleState.observations[volObservationIndex]
+             = VolObservation(blockTimestamp, tickCumulative, tickSquareDelta + prevObservation.tickSquareCumulative);
+        }
+
+        volOracleState.observationIndex = volObservationIndex;
+        volOracleState.lastObservationIndex = endIndex % UNIV3_MAX_CARDINALITY;
+        volOracleState.lastBlockTimestamp = block.timestamp;
+    }
+
+
 }
