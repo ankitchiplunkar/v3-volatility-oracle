@@ -45,7 +45,7 @@ contract VolOracle {
         // TODO: if pool is not at max cardinality then grow it
         // initializing the pool to max size
         VolOracleState storage oracleState = oracleStates[_pool];
-        (uint32 blockTimestamp, int56 tickCumulative, ,) = uniPool.observations(observationIndex);
+        (uint32 blockTimestamp, int56 tickCumulative, , ) = uniPool.observations(observationIndex);
         // set the tickSquareCumulative to 0 during initialization
         oracleState.observations[0] = VolObservation(blockTimestamp, tickCumulative, 0);
         // TODO: should we use current blocktimestamp or the last observation timestamp from uni here
@@ -69,22 +69,25 @@ contract VolOracle {
         (uint256 startIndex, uint256 endIndex) = fetchIntermediateIndexes(_pool);
         IUniswapV3Pool uniPool = IUniswapV3Pool(_pool);
         VolOracleState storage volOracleState = oracleStates[_pool];
-        uint volObservationIndex = volOracleState.observationIndex;
-        for (uint poolObservationIndex = startIndex; poolObservationIndex <= endIndex; poolObservationIndex++) {
-            (uint32 blockTimestamp, int56 tickCumulative, ,) = uniPool.observations(poolObservationIndex % UNIV3_MAX_CARDINALITY);
+        uint256 volObservationIndex = volOracleState.observationIndex;
+        for (uint256 poolObservationIndex = startIndex; poolObservationIndex <= endIndex; poolObservationIndex++) {
+            (uint32 blockTimestamp, int56 tickCumulative, , ) = uniPool.observations(
+                poolObservationIndex % UNIV3_MAX_CARDINALITY
+            );
             VolObservation memory prevObservation = volOracleState.observations[volObservationIndex];
             uint32 timeDelta = blockTimestamp - prevObservation.blockTimestamp;
             int56 tickDelta = tickCumulative - prevObservation.tickCumulative;
-            uint112 tickSquareDelta = uint112(int112((tickDelta / int56(uint56(timeDelta)))** 2));
+            uint112 tickSquareDelta = uint112(int112((tickDelta / int56(uint56(timeDelta)))**2));
             volObservationIndex = (volObservationIndex + 1) % OBSERVATION_SIZE;
-            volOracleState.observations[volObservationIndex]
-             = VolObservation(blockTimestamp, tickCumulative, tickSquareDelta + prevObservation.tickSquareCumulative);
+            volOracleState.observations[volObservationIndex] = VolObservation(
+                blockTimestamp,
+                tickCumulative,
+                tickSquareDelta + prevObservation.tickSquareCumulative
+            );
         }
 
         volOracleState.observationIndex = volObservationIndex;
         volOracleState.lastObservationIndex = endIndex % UNIV3_MAX_CARDINALITY;
         volOracleState.lastBlockTimestamp = block.timestamp;
     }
-
-
 }
