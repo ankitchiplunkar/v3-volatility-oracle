@@ -18,6 +18,11 @@ if (!infuraApiKey) {
   throw new Error("Please set your INFURA_API_KEY in a .env file");
 }
 
+const alchemyApiKey: string | undefined = process.env.ALCHEMY_API_KEY;
+if (!alchemyApiKey) {
+  throw new Error("Please set your INFURA_API_KEY in a .env file");
+}
+
 const chainIds = {
   "arbitrum-mainnet": 42161,
   avalanche: 43114,
@@ -78,7 +83,10 @@ const config: HardhatUserConfig = {
       accounts: {
         mnemonic,
       },
-      chainId: chainIds.hardhat,
+      forking: {
+        url: `https://eth-mainnet.g.alchemy.com/v2/${alchemyApiKey}`,
+        blockNumber: 15846965
+      }
     },
     arbitrum: getChainConfig("arbitrum-mainnet"),
     avalanche: getChainConfig("avalanche"),
