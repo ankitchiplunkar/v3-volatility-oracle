@@ -134,4 +134,12 @@ contract VolOracle {
         volOracleState.lastObservationIndex = endIndex % poolCardinality;
         volOracleState.lastBlockTimestamp = block.timestamp;
     }
+
+    function getObservationSize(address _pool) public view returns (uint256 observationSize) {
+        return oracleStates[_pool].observations.length;
+    }
+
+    function getObservation(address _pool, uint256 _idx) public view returns (VolObservation memory) {
+        return oracleStates[_pool].observations[_idx];
+    }
 }
