@@ -20,6 +20,7 @@ contract VolOracle {
     // stores 30 days of data (with some buffer)
     uint256 public constant OBSERVATION_SIZE = 345600;
     uint256 public constant UNIV3_MAX_CARDINALITY = 65535;
+    uint256 public constant UNIV3_MIN_CARDINALITY = 1000;
 
     struct VolOracleState {
         // @dev Stores Observation arrays for each pool
@@ -41,7 +42,7 @@ contract VolOracle {
         // only initialize pools which have max cardinality
         IUniswapV3Pool uniPool = IUniswapV3Pool(_pool);
         (, , uint16 observationIndex, uint16 observationCardinality, , , ) = uniPool.slot0();
-        require(observationCardinality == UNIV3_MAX_CARDINALITY, "Pool not at max cardinality");
+        require(observationCardinality >= UNIV3_MIN_CARDINALITY, "Pool not at min cardinality");
         // TODO: if pool is not at max cardinality then grow it
         // initializing the pool to max size
         VolOracleState storage oracleState = oracleStates[_pool];
@@ -56,24 +57,27 @@ contract VolOracle {
 
     // returns the start and end indexes for filling intermediate values
     function fetchIntermediateIndexes(address _pool) public view returns (uint256 startIndex, uint256 endIndex) {
-        (, , uint16 latestPoolObservationIndex, , , , ) = IUniswapV3Pool(_pool).slot0();
+        (, , uint16 latestPoolObservationIndex, uint16 poolCardinality, , , ) = IUniswapV3Pool(_pool).slot0();
         uint256 lastObservationIndex = oracleStates[_pool].lastObservationIndex;
         // TODO: we are assuming the oracle won't be down for a long time (>7 days here)
         // both inclusive
         if (latestPoolObservationIndex > lastObservationIndex)
             return (lastObservationIndex + 1, latestPoolObservationIndex);
-        return (lastObservationIndex + 1, latestPoolObservationIndex + UNIV3_MAX_CARDINALITY);
+        return (lastObservationIndex + 1, latestPoolObservationIndex + poolCardinality);
     }
 
     function fillInObservations(address _pool) external {
         (uint256 startIndex, uint256 endIndex) = fetchIntermediateIndexes(_pool);
         IUniswapV3Pool uniPool = IUniswapV3Pool(_pool);
+        (, , , uint16 poolCardinality, , , ) = uniPool.slot0();
         VolOracleState storage volOracleState = oracleStates[_pool];
         uint256 volObservationIndex = volOracleState.observationIndex;
         for (uint256 poolObservationIndex = startIndex; poolObservationIndex <= endIndex; poolObservationIndex++) {
-            (uint32 blockTimestamp, int56 tickCumulative, , ) = uniPool.observations(
-                poolObservationIndex % UNIV3_MAX_CARDINALITY
+            (uint32 blockTimestamp, int56 tickCumulative, , bool initialized) = uniPool.observations(
+                poolObservationIndex % poolCardinality
             );
+            // this observation has not been initialized, probably due to the increase of cardinality
+            if (!initialized) continue;
             VolObservation memory prevObservation = volOracleState.observations[volObservationIndex];
             uint32 timeDelta = blockTimestamp - prevObservation.blockTimestamp;
             int56 tickDelta = tickCumulative - prevObservation.tickCumulative;
@@ -87,7 +91,15 @@ contract VolOracle {
         }
 
         volOracleState.observationIndex = volObservationIndex;
-        volOracleState.lastObservationIndex = endIndex % UNIV3_MAX_CARDINALITY;
+        volOracleState.lastObservationIndex = endIndex % poolCardinality;
         volOracleState.lastBlockTimestamp = block.timestamp;
+    }
+
+    function getObservationSize(address _pool) public view returns (uint256 observationSize) {
+        return oracleStates[_pool].observations.length;
+    }
+
+    function getObservation(address _pool, uint256 _idx) public view returns (VolObservation memory) {
+        return oracleStates[_pool].observations[_idx];
     }
 }

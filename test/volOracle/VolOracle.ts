@@ -3,7 +3,7 @@ import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signe
 import { ethers } from "hardhat";
 
 import type { Signers } from "../types";
-import { shouldBehaveLikeVolOracle } from "./VolOracle.behavior";
+import { shouldFetchTheCorrectStartEndIndex, shouldFillInObservationsCorrectly, shouldInitPoolCorrectly } from "./VolOracle.behavior";
 import { deployVolOracleFixture } from "./VolOracle.fixture";
 
 describe("Unit tests", function () {
@@ -22,6 +22,16 @@ describe("Unit tests", function () {
       this.volOracle = volOracle;
     });
 
-    shouldBehaveLikeVolOracle();
+    describe("Initialize Pool", function () {
+      shouldInitPoolCorrectly();
+    });
+
+    describe("Fetch Indexes", function() {
+      shouldFetchTheCorrectStartEndIndex();
+    });
+
+    describe("Fill In Observations", function() {
+      // shouldFillInObservationsCorrectly();
+    });
   });
 });
