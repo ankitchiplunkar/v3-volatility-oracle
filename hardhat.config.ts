@@ -83,10 +83,6 @@ const config: HardhatUserConfig = {
       accounts: {
         mnemonic,
       },
-      forking: {
-        url: `https://eth-mainnet.g.alchemy.com/v2/${alchemyApiKey}`,
-        blockNumber: 15846965,
-      },
     },
     arbitrum: getChainConfig("arbitrum-mainnet"),
     avalanche: getChainConfig("avalanche"),
