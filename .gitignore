@@ -17,7 +17,7 @@
 **/src/types
 
 # files
-*.env
+.env
 *.log
 .pnp.*
 coverage.json
