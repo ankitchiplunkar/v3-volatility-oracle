@@ -20,7 +20,7 @@ if (!infuraApiKey) {
 
 const alchemyApiKey: string | undefined = process.env.ALCHEMY_API_KEY;
 if (!alchemyApiKey) {
-  throw new Error("Please set your INFURA_API_KEY in a .env file");
+  throw new Error("Please set your ALCHEMY_API_KEY in a .env file");
 }
 
 const chainIds = {
@@ -85,8 +85,8 @@ const config: HardhatUserConfig = {
       },
       forking: {
         url: `https://eth-mainnet.g.alchemy.com/v2/${alchemyApiKey}`,
-        blockNumber: 15846965
-      }
+        blockNumber: 15846965,
+      },
     },
     arbitrum: getChainConfig("arbitrum-mainnet"),
     avalanche: getChainConfig("avalanche"),
