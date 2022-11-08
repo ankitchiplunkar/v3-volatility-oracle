@@ -18,7 +18,6 @@ jobs:
       - name: "Install Node.js"
         uses: "actions/setup-node@v3"
         with:
-          cache: "yarn"
           node-version: "16"
 
       # Inject all environment variables from ".env.example" in $GITHUB_ENV
