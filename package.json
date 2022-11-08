@@ -9,6 +9,7 @@
   "devDependencies": {
     "@commitlint/cli": "^17.0.3",
     "@commitlint/config-conventional": "^17.0.3",
+    "@defi-wonderland/smock": "^2.3.4",
     "@ethersproject/abi": "^5.6.4",
     "@ethersproject/abstract-signer": "^5.6.2",
     "@ethersproject/bignumber": "^5.6.2",
