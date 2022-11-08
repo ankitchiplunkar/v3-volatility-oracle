@@ -36,6 +36,11 @@ contract VolOracle {
     // @dev Stores Observation arrays for each pool
     mapping(address => VolOracleState) public oracleStates;
 
+    function getObservation(address _pool, uint256 id) public view returns (VolObservation memory) {
+        VolObservation memory observation = oracleStates[_pool].observations[id];
+        return observation;
+    }
+
     function initPool(address _pool) external {
         require(oracleStates[_pool].lastBlockTimestamp == 0, "Pool already initialized");
         // only initialize pools which have max cardinality
