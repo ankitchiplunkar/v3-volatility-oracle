@@ -32,6 +32,7 @@ __metadata:
     "@nomicfoundation/hardhat-toolbox": ^1.0.2
     "@nomiclabs/hardhat-ethers": ^2.1.0
     "@nomiclabs/hardhat-etherscan": ^3.1.0
+    "@nomiclabs/hardhat-waffle": ^2.0.3
     "@trivago/prettier-plugin-sort-imports": ^3.3.0
     "@typechain/ethers-v5": ^10.1.0
     "@typechain/hardhat": ^6.1.2
@@ -1636,6 +1637,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@nomiclabs/hardhat-waffle@npm:^2.0.3":
+  version: 2.0.3
+  resolution: "@nomiclabs/hardhat-waffle@npm:2.0.3"
+  dependencies:
+    "@types/sinon-chai": ^3.2.3
+    "@types/web3": 1.0.19
+  peerDependencies:
+    "@nomiclabs/hardhat-ethers": ^2.0.0
+    ethereum-waffle: ^3.2.0
+    ethers: ^5.0.0
+    hardhat: ^2.0.0
+  checksum: e68c9e13905caa54a10fa68d9ad7dc905c86469c879f91e999a1c4d039dd2f9fa43a8ed90ab975afb14a79cd6badeb60a7cf50dc6564660edd192614c55875ca
+  languageName: node
+  linkType: hard
+
 "@npmcli/fs@npm:^2.1.0":
   version: 2.1.2
   resolution: "@npmcli/fs@npm:2.1.2"
@@ -1993,21 +2009,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/bn.js@npm:*, @types/bn.js@npm:^5.1.0":
+  version: 5.1.1
+  resolution: "@types/bn.js@npm:5.1.1"
+  dependencies:
+    "@types/node": "*"
+  checksum: e50ed2dd3abe997e047caf90e0352c71e54fc388679735217978b4ceb7e336e51477791b715f49fd77195ac26dd296c7bad08a3be9750e235f9b2e1edb1b51c2
+  languageName: node
+  linkType: hard
+
 "@types/bn.js@npm:^4.11.3, @types/bn.js@npm:^4.11.5":
   version: 4.11.6
   resolution: "@types/bn.js@npm:4.11.6"
   dependencies:
     "@types/node": "*"
   checksum: 7f66f2c7b7b9303b3205a57184261974b114495736b77853af5b18d857c0b33e82ce7146911e86e87a87837de8acae28986716fd381ac7c301fd6e8d8b6c811f
-  languageName: node
-  linkType: hard
-
-"@types/bn.js@npm:^5.1.0":
-  version: 5.1.1
-  resolution: "@types/bn.js@npm:5.1.1"
-  dependencies:
-    "@types/node": "*"
-  checksum: e50ed2dd3abe997e047caf90e0352c71e54fc388679735217978b4ceb7e336e51477791b715f49fd77195ac26dd296c7bad08a3be9750e235f9b2e1edb1b51c2
   languageName: node
   linkType: hard
 
@@ -2242,6 +2258,49 @@ __metadata:
   dependencies:
     "@types/node": "*"
   checksum: 1bd10b9afa724084b655dc81b7b315def3d2d0e272014ef16009fa76e17537411c07c0695fdea412bc7b36d2a02687f5fea33522d55b8ef29eda42992f812913
+  languageName: node
+  linkType: hard
+
+"@types/sinon-chai@npm:^3.2.3":
+  version: 3.2.9
+  resolution: "@types/sinon-chai@npm:3.2.9"
+  dependencies:
+    "@types/chai": "*"
+    "@types/sinon": "*"
+  checksum: 3238ee2e3f64d0fc3e3d08a0d69f1edf062500e58814cbf9898ab6b28a8acfa01734069a431e7cff2b0890d8fa2782103b2c011b247520885a50f8928e395681
+  languageName: node
+  linkType: hard
+
+"@types/sinon@npm:*":
+  version: 10.0.13
+  resolution: "@types/sinon@npm:10.0.13"
+  dependencies:
+    "@types/sinonjs__fake-timers": "*"
+  checksum: 46a14c888db50f0098ec53d451877e0111d878ec4a653b9e9ed7f8e54de386d6beb0e528ddc3e95cd3361a8ab9ad54e4cca33cd88d45b9227b83e9fc8fb6688a
+  languageName: node
+  linkType: hard
+
+"@types/sinonjs__fake-timers@npm:*":
+  version: 8.1.2
+  resolution: "@types/sinonjs__fake-timers@npm:8.1.2"
+  checksum: bbc73a5ab6c0ec974929392f3d6e1e8db4ebad97ec506d785301e1c3d8a4f98a35b1aa95b97035daef02886fd8efd7788a2fa3ced2ec7105988bfd8dce61eedd
+  languageName: node
+  linkType: hard
+
+"@types/underscore@npm:*":
+  version: 1.11.4
+  resolution: "@types/underscore@npm:1.11.4"
+  checksum: db9f8486bc851b732259e51f42d62aad1ae2158be5724612dc125ece5f5d61c51447f9dea28284c2a0f79cb95e788d01cb5ce97709880019213e69fab0dd1696
+  languageName: node
+  linkType: hard
+
+"@types/web3@npm:1.0.19":
+  version: 1.0.19
+  resolution: "@types/web3@npm:1.0.19"
+  dependencies:
+    "@types/bn.js": "*"
+    "@types/underscore": "*"
+  checksum: 25a78e80052cca8abe5edf15c0ae92854d00d1bec15283486a2535ab673345b0be090e39cc9a86822be17ddd812fa76cbfd869be21bb944d2faaf2922e2a836a
   languageName: node
   linkType: hard
 

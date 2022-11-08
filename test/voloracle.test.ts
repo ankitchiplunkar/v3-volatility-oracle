@@ -2,14 +2,14 @@ import { FakeContract, smock } from "@defi-wonderland/smock";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { abi as POOL_ABI } from "@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json";
 import chai from "chai";
-import { solidity } from "ethereum-waffle";
 import { ethers } from "hardhat";
 
 import { IUniswapV3Pool } from "../src/types/@uniswap/v3-core/contracts/interfaces";
 import { VolOracle } from "../src/types/contracts";
 import { VolOracle__factory } from "../src/types/factories/contracts";
 
-chai.use(solidity);
+const { solidity } = require("hardhat");
+
 chai.use(smock.matchers);
 const { expect } = chai;
 
