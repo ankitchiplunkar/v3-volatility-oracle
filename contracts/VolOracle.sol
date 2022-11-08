@@ -36,6 +36,11 @@ contract VolOracle {
     // @dev Stores Observation arrays for each pool
     mapping(address => VolOracleState) public oracleStates;
 
+    function getObservation(address _pool, uint256 id) public view returns (VolObservation memory) {
+        VolObservation memory observation = oracleStates[_pool].observations[id];
+        return observation;
+    }
+
     function initPool(address _pool) external {
         require(oracleStates[_pool].lastBlockTimestamp == 0, "Pool already initialized");
         // only initialize pools which have max cardinality
@@ -77,7 +82,7 @@ contract VolOracle {
             VolObservation memory prevObservation = volOracleState.observations[volObservationIndex];
             uint32 timeDelta = blockTimestamp - prevObservation.blockTimestamp;
             int56 tickDelta = tickCumulative - prevObservation.tickCumulative;
-            uint112 tickSquareDelta = uint112(int112((tickDelta / int56(uint56(timeDelta)))**2));
+            uint112 tickSquareDelta = uint112(int112((tickDelta / int56(uint56(timeDelta))) ** 2));
             volObservationIndex = (volObservationIndex + 1) % OBSERVATION_SIZE;
             volOracleState.observations[volObservationIndex] = VolObservation(
                 blockTimestamp,
