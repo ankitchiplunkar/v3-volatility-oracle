@@ -8,8 +8,6 @@ import { IUniswapV3Pool } from "../src/types/@uniswap/v3-core/contracts/interfac
 import { VolOracle } from "../src/types/contracts";
 import { VolOracle__factory } from "../src/types/factories/contracts";
 
-const { solidity } = require("hardhat");
-
 chai.use(smock.matchers);
 const { expect } = chai;
 
