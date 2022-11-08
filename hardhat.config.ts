@@ -14,10 +14,7 @@ if (!mnemonic) {
   throw new Error("Please set your MNEMONIC in a .env file");
 }
 
-const infuraApiKey: string | undefined = process.env.INFURA_API_KEY;
-if (!infuraApiKey) {
-  throw new Error("Please set your INFURA_API_KEY in a .env file");
-}
+const infuraApiKey = "";
 
 const alchemyApiKey: string | undefined = process.env.ALCHEMY_API_KEY;
 if (!alchemyApiKey) {
