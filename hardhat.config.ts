@@ -1,5 +1,5 @@
+import "@nomicfoundation/hardhat-chai-matchers";
 import "@nomicfoundation/hardhat-toolbox";
-import "@nomiclabs/hardhat-waffle";
 import { config as dotenvConfig } from "dotenv";
 import type { HardhatUserConfig } from "hardhat/config";
 import type { NetworkUserConfig } from "hardhat/types";
