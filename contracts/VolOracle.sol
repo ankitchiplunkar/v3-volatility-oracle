@@ -21,6 +21,8 @@ contract VolOracle {
     uint256 public constant OBSERVATION_SIZE = 345600;
     uint256 public constant UNIV3_MAX_CARDINALITY = 65535;
     uint256 public constant UNIV3_MIN_CARDINALITY = 1000;
+    // the largest number of observations we can fill at one time, this depends on the gas consumption
+    //  uint256 public const MAX_FILL = 400;
 
     struct VolOracleState {
         // @dev Stores Observation arrays for each pool
@@ -59,6 +61,7 @@ contract VolOracle {
         // set the tickSquareCumulative to 0 during initialization
         oracleState.observations[0] = VolObservation(blockTimestamp, tickCumulative, 0);
         // TODO: should we use current blocktimestamp or the last observation timestamp from uni here
+
         oracleState.lastBlockTimestamp = block.timestamp;
         oracleState.lastObservationIndex = observationIndex;
         oracleState.observationIndex = 0;
@@ -66,17 +69,37 @@ contract VolOracle {
 
     // returns the start and end indexes for filling intermediate values
     function fetchIntermediateIndexes(address _pool) public view returns (uint256 startIndex, uint256 endIndex) {
-        (, , uint16 latestPoolObservationIndex, uint16 poolCardinality, , , ) = IUniswapV3Pool(_pool).slot0();
-        uint256 lastObservationIndex = oracleStates[_pool].lastObservationIndex;
-        // TODO: we are assuming the oracle won't be down for a long time (>7 days here)
-        // both inclusive
-        if (latestPoolObservationIndex > lastObservationIndex)
-            return (lastObservationIndex + 1, latestPoolObservationIndex);
-        return (lastObservationIndex + 1, latestPoolObservationIndex + poolCardinality);
+        IUniswapV3Pool uniPool = IUniswapV3Pool(_pool);
+        (, , uint16 latestPoolObservationIndex, uint16 poolCardinality, , , ) = uniPool.slot0();
+
+        uint256 oldestObservationIndex = (latestPoolObservationIndex + 1) % poolCardinality;
+
+        (uint32 oldestObservationTs, , , bool initialized) = uniPool.observations(oldestObservationIndex);
+
+        VolOracleState storage volOracleState = oracleStates[_pool];
+
+        // if the uni pool has overriden the whole array as oracle is down for too long, directly start from the
+        // earliest available
+        if (initialized && volOracleState.lastBlockTimestamp < oldestObservationTs) {
+            startIndex = oldestObservationIndex;
+            endIndex = latestPoolObservationIndex + poolCardinality;
+        } else {
+            startIndex = volOracleState.lastObservationIndex + 1;
+            // both inclusive
+            // stay the same
+            if (latestPoolObservationIndex >= volOracleState.lastObservationIndex) {
+                endIndex = latestPoolObservationIndex;
+            } else {
+                endIndex = latestPoolObservationIndex + poolCardinality;
+            }
+        }
     }
 
     function fillInObservations(address _pool) external {
+        require(oracleStates[_pool].lastBlockTimestamp > 0, "Pool not initialized");
+
         (uint256 startIndex, uint256 endIndex) = fetchIntermediateIndexes(_pool);
+
         IUniswapV3Pool uniPool = IUniswapV3Pool(_pool);
         (, , , uint16 poolCardinality, , , ) = uniPool.slot0();
         VolOracleState storage volOracleState = oracleStates[_pool];
@@ -87,10 +110,12 @@ contract VolOracle {
             );
             // this observation has not been initialized, probably due to the increase of cardinality
             if (!initialized) continue;
-            VolObservation memory prevObservation = volOracleState.observations[volObservationIndex];
+            VolObservation storage prevObservation = volOracleState.observations[volObservationIndex];
+
             uint32 timeDelta = blockTimestamp - prevObservation.blockTimestamp;
             int56 tickDelta = tickCumulative - prevObservation.tickCumulative;
-            uint112 tickSquareDelta = uint112(int112((tickDelta / int56(uint56(timeDelta))) ** 2));
+            uint112 tickSquareDelta = uint112(int112((tickDelta / int56(uint56(timeDelta)))**2)) * timeDelta;
+
             volObservationIndex = (volObservationIndex + 1) % OBSERVATION_SIZE;
             volOracleState.observations[volObservationIndex] = VolObservation(
                 blockTimestamp,
