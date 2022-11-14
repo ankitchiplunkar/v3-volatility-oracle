@@ -8,7 +8,7 @@ import { ethers } from "hardhat";
 import { IUniswapV3Pool } from "../src/types/@uniswap/v3-core/contracts/interfaces";
 import { VolOracle } from "../src/types/contracts";
 import { VolOracle__factory } from "../src/types/factories/contracts";
-import { DUMB_OBSERVATION, DUMB_SLOT, fakeObservations } from "./helper";
+import { DUMB_OBSERVATION, DUMB_SLOT, fakeObservations, getLatestTimestamp } from "./helper";
 
 chai.use(smock.matchers);
 const { expect } = chai;
@@ -369,8 +369,3 @@ describe("Vol Oracle tests", () => {
     });
   });
 });
-
-async function getLatestTimestamp() {
-  const latestBlock = await ethers.provider.getBlock("latest");
-  return latestBlock.timestamp;
-}

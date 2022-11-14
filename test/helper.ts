@@ -54,3 +54,8 @@ export async function fakeObservations(
       .returns({ ...DUMB_OBSERVATION, ...{ blockTimestamp: ts, tickCumulative: tickCumulative } });
   }
 }
+
+export async function getLatestTimestamp() {
+  const latestBlock = await ethers.provider.getBlock("latest");
+  return latestBlock.timestamp;
+}
