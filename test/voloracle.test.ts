@@ -8,6 +8,7 @@ import { ethers } from "hardhat";
 import { IUniswapV3Pool } from "../src/types/@uniswap/v3-core/contracts/interfaces";
 import { VolOracle } from "../src/types/contracts";
 import { VolOracle__factory } from "../src/types/factories/contracts";
+import { DUMB_OBSERVATION, DUMB_SLOT, fakeObservations } from "./helper";
 
 chai.use(smock.matchers);
 const { expect } = chai;
@@ -18,23 +19,6 @@ describe("Vol Oracle tests", () => {
   let uniV3Pool: FakeContract<IUniswapV3Pool>;
   const OBSERVATION_SIZE = 345600;
   const UNIV3_MAX_CARDINALITY = 65535;
-
-  const DUMB_SLOT = {
-    sqrtPriceX96: 1,
-    tick: 1,
-    observationIndex: 0,
-    observationCardinality: 100,
-    observationCardinalityNext: 100,
-    feeProtocol: 1,
-    unlocked: false,
-  };
-
-  const DUMB_OBSERVATION = {
-    blockTimestamp: 1,
-    tickCumulative: 1,
-    secondsPerLiquidityCumulativeX128: 1,
-    initialized: true,
-  };
 
   beforeEach("deploy contracts", async () => {
     [deployer] = await ethers.getSigners();
@@ -200,46 +184,32 @@ describe("Vol Oracle tests", () => {
     const startTickCumulative = 10000;
     let startTs: number;
 
-    /**
-     * fake slot0 and observations return for uniswap. ≈
-     * @param firstIndex the index of the first observation to be mocked out
-     * @param length the length of the observations to be mocked out
-     * @param firstTs the timestamp of the first mocked out observation, increment ts by 1 per observation
-     * @param tickCumulativeData optional, if not specified, filled with tick = 1
-     */
-    async function fakeObservations(
-      firstIndex: number,
-      length: number,
-      firstTs: number,
-      tickCumulativeData?: number[],
-    ) {
-      uniV3Pool.slot0.returns({
-        ...DUMB_SLOT,
-        ...{
-          observationIndex: (firstIndex + length - 1) % observationCardinality,
-          observationCardinality: observationCardinality,
-        },
-      });
-
-      for (let i = 0; i < length; i++) {
-        const ts = firstTs + i;
-        const tickCumulative =
-          typeof tickCumulativeData !== "undefined" ? tickCumulativeData[i] : startTickCumulative + ts - startTs;
-
-        uniV3Pool.observations
-          .whenCalledWith((firstIndex + i) % observationCardinality)
-          .returns({ ...DUMB_OBSERVATION, ...{ blockTimestamp: ts, tickCumulative: tickCumulative } });
-      }
-    }
-
     beforeEach("Prepare Uni Pool and Vol Oracle", async function () {
       if (this.currentTest?.title == "should return error if the pool is not initialized") return;
 
       startTs = (await getLatestTimestamp()) - mockObservationIndex0;
 
-      await fakeObservations(0, mockObservationIndex0 + 1, startTs);
+      await callFakeObservations(0, mockObservationIndex0 + 1, startTs);
       await volOracle.initPool(uniV3Pool.address);
     });
+
+    async function callFakeObservations(
+      firstIndex: number,
+      length: number,
+      firstTs: number,
+      tickCumulativeData?: number[],
+    ) {
+      await fakeObservations(
+        uniV3Pool,
+        observationCardinality,
+        startTs,
+        startTickCumulative,
+        firstIndex,
+        length,
+        firstTs,
+        tickCumulativeData,
+      );
+    }
 
     it("should return error if the pool is not initialized", async function () {
       await expect(volOracle.fillInObservations(uniV3Pool.address)).to.be.revertedWith("Pool not initialized");
@@ -250,7 +220,7 @@ describe("Vol Oracle tests", () => {
 
       const observationGrowth = 2;
       const tsOffset = mockObservationIndex0 + 200;
-      await fakeObservations(mockObservationIndex0 + 1, observationGrowth, startTs + tsOffset);
+      await callFakeObservations(mockObservationIndex0 + 1, observationGrowth, startTs + tsOffset);
 
       uniV3Pool.observations
         .whenCalledWith(mockObservationIndex0 + observationGrowth + 1)
@@ -279,7 +249,7 @@ describe("Vol Oracle tests", () => {
 
       const observationGrowth = observationCardinality - mockObservationIndex0 + 12;
       const tsOffset = mockObservationIndex0 + 200;
-      await fakeObservations(mockObservationIndex0 + 1, observationGrowth, startTs + tsOffset);
+      await callFakeObservations(mockObservationIndex0 + 1, observationGrowth, startTs + tsOffset);
 
       await volOracle.fillInObservations(uniV3Pool.address);
 
@@ -302,7 +272,7 @@ describe("Vol Oracle tests", () => {
 
       const observationGrowth = observationCardinality + 5;
       const tsOffset = mockObservationIndex0 + 200;
-      await fakeObservations(mockObservationIndex0 + 1, observationGrowth, startTs + tsOffset);
+      await callFakeObservations(mockObservationIndex0 + 1, observationGrowth, startTs + tsOffset);
 
       await volOracle.fillInObservations(uniV3Pool.address);
 
@@ -344,7 +314,7 @@ describe("Vol Oracle tests", () => {
       for (let i = 0; i < observationGrowth; i++) {
         tickCumulativeData[i] = startTickCumulative + mockObservationIndex0 - (tsOffset - mockObservationIndex0 + i);
       }
-      await fakeObservations(mockObservationIndex0 + 1, observationGrowth, startTs + tsOffset, tickCumulativeData);
+      await callFakeObservations(mockObservationIndex0 + 1, observationGrowth, startTs + tsOffset, tickCumulativeData);
 
       uniV3Pool.observations
         .whenCalledWith(mockObservationIndex0 + observationGrowth + 1)
@@ -358,7 +328,6 @@ describe("Vol Oracle tests", () => {
       expect(oracleState.observationIndex).to.equal(observationGrowth);
 
       const observation = await volOracle.getObservation(uniV3Pool.address, observationGrowth);
-      console.log(observation);
       expect(observation.blockTimestamp).to.equal(startTs + tsOffset + observationGrowth - 1);
       expect(observation.tickCumulative).to.equal(
         startTickCumulative + mockObservationIndex0 - (tsOffset - mockObservationIndex0 + observationGrowth - 1),
@@ -379,7 +348,7 @@ describe("Vol Oracle tests", () => {
       tickCumulativeData[2] = tickCumulativeData[1] + 3;
       tickCumulativeData[3] = tickCumulativeData[2] - 4;
 
-      await fakeObservations(mockObservationIndex0 + 1, observationGrowth, startTs + tsOffset, tickCumulativeData);
+      await callFakeObservations(mockObservationIndex0 + 1, observationGrowth, startTs + tsOffset, tickCumulativeData);
 
       uniV3Pool.observations
         .whenCalledWith(mockObservationIndex0 + observationGrowth + 1)
