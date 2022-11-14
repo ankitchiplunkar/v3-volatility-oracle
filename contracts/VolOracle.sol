@@ -76,6 +76,12 @@ contract VolOracle {
 
         (uint32 oldestObservationTs, , , bool initialized) = uniPool.observations(oldestObservationIndex);
 
+        // The next index might not be initialized if the cardinality is in the process of increasing
+        // In this case the oldest observation is always in index 0
+        if (!initialized) {
+            (oldestObservationTs, , , ) = uniPool.observations(0);
+        }
+
         VolOracleState storage volOracleState = oracleStates[_pool];
 
         // if the uni pool has overriden the whole array as oracle is down for too long, directly start from the
