@@ -1,5 +1,5 @@
 import { FakeContract, smock } from "@defi-wonderland/smock";
-import { mine } from "@nomicfoundation/hardhat-network-helpers";
+import { mine, time } from "@nomicfoundation/hardhat-network-helpers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { abi as POOL_ABI } from "@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json";
 import chai from "chai";
@@ -209,6 +209,110 @@ describe("Vol Oracle tests", () => {
         firstTs,
         tickCumulativeData,
       );
+    }
+
+    async function fakeObservationInitializationAndGrowth(
+      initialObservationIndex: number,
+      observationGrowth: number,
+      tickData: number | number[],
+      tsGap: number,
+    ) {
+      // select a ts
+      let ts = startTs;
+      let tickCumulative = startTickCumulative;
+      // fill in the initial data for slot0 and observations
+      uniV3Pool.slot0.returns({
+        ...DUMB_SLOT,
+        ...{
+          observationIndex: initialObservationIndex - 1,
+          observationCardinality: observationCardinality,
+        },
+      });
+
+      for (let i = 0; i <= initialObservationIndex; i++, ts++) {
+        if (typeof tickData === "number") {
+          tickCumulative += tickData;
+        } else {
+          tickCumulative += tickData[i];
+        }
+
+        uniV3Pool.observations
+          .whenCalledWith(i)
+          .returns({ ...DUMB_OBSERVATION, ...{ blockTimestamp: ts, tickCumulative: tickCumulative } });
+      }
+
+      for (let i = initialObservationIndex + 1; i < observationCardinality; ++i) {
+        uniV3Pool.observations.whenCalledWith(i).returns({ ...DUMB_OBSERVATION, ...{ initialized: false } });
+      }
+
+      await time.setNextBlockTimestamp(ts);
+      await volOracle.initPool(uniV3Pool.address);
+
+      // randomly increase the ts
+      //ts += Math.floor(Math.random() * observationCardinality);
+      // await callFakeObservations(0, mockObservationIndex0 + 1, startTs);
+
+      // mimic the growth of observations
+      ts = ts - 1 + tsGap;
+      for (let i = initialObservationIndex + 1; i <= initialObservationIndex + observationGrowth; i++, ts++) {
+        const tick = typeof tickData === "number" ? tickData : tickData[i];
+        tickCumulative += i === initialObservationIndex + 1 ? tick * tsGap : tick;
+
+        uniV3Pool.observations
+          .whenCalledWith(i % observationCardinality)
+          .returns({ ...DUMB_OBSERVATION, ...{ blockTimestamp: ts, tickCumulative: tickCumulative } });
+      }
+
+      // increase the timestamp enough
+      await time.increase(observationCardinality * 3);
+    }
+
+    async function expectedStates(
+      initialObservationIndex: number,
+      observationGrowth: number,
+      tickData: number | number[],
+      tsGap: number,
+    ) {
+      let firstTickCumulative;
+      let lastTickCumulative;
+      let lastTickSquareCumulative;
+
+      let tickAccumulator = startTickCumulative;
+      let tickSquareAccumulator = 0;
+      for (let i = 0; i <= initialObservationIndex + observationGrowth; i++) {
+        const tick = typeof tickData === "number" ? tickData : tickData[i];
+        if (i === initialObservationIndex + 1) {
+          tickAccumulator += tick * tsGap;
+          tickSquareAccumulator += tick * tick * tsGap;
+        } else {
+          tickAccumulator += tick;
+          tickSquareAccumulator += tick * tick;
+        }
+        if (i === initialObservationIndex) {
+          firstTickCumulative = tickAccumulator;
+        }
+        if (i === initialObservationIndex + observationGrowth) {
+          lastTickCumulative = tickAccumulator;
+          lastTickSquareCumulative = tickSquareAccumulator;
+        }
+      }
+
+      const expectedReturn = {
+        lastObservationIndex: (initialObservationIndex + observationGrowth) % observationCardinality,
+        observationIndex: observationGrowth,
+        firstObservation: {
+          blockTimestamp: startTs + initialObservationIndex,
+          tickCummulative: firstTickCumulative,
+          tickSquareCumulative: 0,
+        },
+        lastobservation: {
+          blockTimestamp: startTs + initialObservationIndex + observationGrowth + tsGap - 1,
+          tickCummulative: lastTickCumulative,
+          tickSquareCumulative: lastTickSquareCumulative,
+        },
+      };
+
+      return expectedReturn;
     }
 
     it("should return error if the pool is not initialized", async function () {

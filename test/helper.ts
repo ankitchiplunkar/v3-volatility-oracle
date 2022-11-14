@@ -1,4 +1,5 @@
 import { FakeContract } from "@defi-wonderland/smock";
+import { ethers } from "hardhat";
 
 import { IUniswapV3Pool } from "../src/types/@uniswap/v3-core/contracts/interfaces";
 
