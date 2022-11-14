@@ -1,5 +1,5 @@
 import { FakeContract, smock } from "@defi-wonderland/smock";
-import { mine, time } from "@nomicfoundation/hardhat-network-helpers";
+import { mine } from "@nomicfoundation/hardhat-network-helpers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { abi as POOL_ABI } from "@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json";
 import chai from "chai";
@@ -8,7 +8,14 @@ import { ethers } from "hardhat";
 import { IUniswapV3Pool } from "../src/types/@uniswap/v3-core/contracts/interfaces";
 import { VolOracle } from "../src/types/contracts";
 import { VolOracle__factory } from "../src/types/factories/contracts";
-import { DUMB_OBSERVATION, DUMB_SLOT, fakeObservations, getLatestTimestamp } from "./helper";
+import {
+  DUMB_OBSERVATION,
+  DUMB_SLOT,
+  checkResult,
+  fakeObservationInitializationAndGrowth,
+  fakeObservations,
+  getLatestTimestamp,
+} from "./helper";
 
 chai.use(smock.matchers);
 const { expect } = chai;
@@ -185,12 +192,7 @@ describe("Vol Oracle tests", () => {
     let startTs: number;
 
     beforeEach("Prepare Uni Pool and Vol Oracle", async function () {
-      if (this.currentTest?.title == "should return error if the pool is not initialized") return;
-
       startTs = (await getLatestTimestamp()) - mockObservationIndex0;
-
-      await callFakeObservations(0, mockObservationIndex0 + 1, startTs);
-      await volOracle.initPool(uniV3Pool.address);
     });
 
     async function callFakeObservations(
@@ -211,163 +213,45 @@ describe("Vol Oracle tests", () => {
       );
     }
 
-    async function fakeObservationInitializationAndGrowth(
-      initialObservationIndex: number,
-      observationGrowth: number,
-      tickData: number | number[],
-      tsGap: number,
-    ) {
-      // select a ts
-      let ts = startTs;
-      let tickCumulative = startTickCumulative;
-      // fill in the initial data for slot0 and observations
-      uniV3Pool.slot0.returns({
-        ...DUMB_SLOT,
-        ...{
-          observationIndex: initialObservationIndex - 1,
-          observationCardinality: observationCardinality,
-        },
-      });
-
-      for (let i = 0; i <= initialObservationIndex; i++, ts++) {
-        if (typeof tickData === "number") {
-          tickCumulative += tickData;
-        } else {
-          tickCumulative += tickData[i];
-        }
-
-        uniV3Pool.observations
-          .whenCalledWith(i)
-          .returns({ ...DUMB_OBSERVATION, ...{ blockTimestamp: ts, tickCumulative: tickCumulative } });
-      }
-
-      for (let i = initialObservationIndex + 1; i < observationCardinality; ++i) {
-        uniV3Pool.observations.whenCalledWith(i).returns({ ...DUMB_OBSERVATION, ...{ initialized: false } });
-      }
-
-      await time.setNextBlockTimestamp(ts);
-      await volOracle.initPool(uniV3Pool.address);
-
-      // randomly increase the ts
-      //ts += Math.floor(Math.random() * observationCardinality);
-      // await callFakeObservations(0, mockObservationIndex0 + 1, startTs);
-
-      // mimic the growth of observations
-      ts = ts - 1 + tsGap;
-      for (let i = initialObservationIndex + 1; i <= initialObservationIndex + observationGrowth; i++, ts++) {
-        const tick = typeof tickData === "number" ? tickData : tickData[i];
-        tickCumulative += i === initialObservationIndex + 1 ? tick * tsGap : tick;
-
-        uniV3Pool.observations
-          .whenCalledWith(i % observationCardinality)
-          .returns({ ...DUMB_OBSERVATION, ...{ blockTimestamp: ts, tickCumulative: tickCumulative } });
-      }
-
-      // increase the timestamp enough
-      await time.increase(observationCardinality * 3);
-    }
-
-    async function expectedStates(
-      initialObservationIndex: number,
-      observationGrowth: number,
-      tickData: number | number[],
-      tsGap: number,
-    ) {
-      let firstTickCumulative;
-      let lastTickCumulative;
-      let lastTickSquareCumulative;
-
-      let tickAccumulator = startTickCumulative;
-      let tickSquareAccumulator = 0;
-      for (let i = 0; i <= initialObservationIndex + observationGrowth; i++) {
-        const tick = typeof tickData === "number" ? tickData : tickData[i];
-        if (i === initialObservationIndex + 1) {
-          tickAccumulator += tick * tsGap;
-          tickSquareAccumulator += tick * tick * tsGap;
-        } else {
-          tickAccumulator += tick;
-          tickSquareAccumulator += tick * tick;
-        }
-        if (i === initialObservationIndex) {
-          firstTickCumulative = tickAccumulator;
-        }
-        if (i === initialObservationIndex + observationGrowth) {
-          lastTickCumulative = tickAccumulator;
-          lastTickSquareCumulative = tickSquareAccumulator;
-        }
-      }
-
-      const expectedReturn = {
-        lastObservationIndex: (initialObservationIndex + observationGrowth) % observationCardinality,
-        observationIndex: observationGrowth,
-        firstObservation: {
-          blockTimestamp: startTs + initialObservationIndex,
-          tickCummulative: firstTickCumulative,
-          tickSquareCumulative: 0,
-        },
-        lastobservation: {
-          blockTimestamp: startTs + initialObservationIndex + observationGrowth + tsGap - 1,
-          tickCummulative: lastTickCumulative,
-          tickSquareCumulative: lastTickSquareCumulative,
-        },
-      };
-
-      return expectedReturn;
-    }
-
     it("should return error if the pool is not initialized", async function () {
       await expect(volOracle.fillInObservations(uniV3Pool.address)).to.be.revertedWith("Pool not initialized");
     });
 
     it("fills in observations correctly when uni observations grow but not override", async function () {
-      await mine(observationCardinality);
-
       const observationGrowth = 2;
-      const tsOffset = mockObservationIndex0 + 200;
-      await callFakeObservations(mockObservationIndex0 + 1, observationGrowth, startTs + tsOffset);
+      const tsGap = 200;
 
-      uniV3Pool.observations
-        .whenCalledWith(mockObservationIndex0 + observationGrowth + 1)
-        .returns({ ...DUMB_OBSERVATION, ...{ initialized: false } });
+      await fakeObservationInitializationAndGrowth(
+        uniV3Pool,
+        volOracle,
+        mockObservationIndex0,
+        observationGrowth,
+        1,
+        startTs,
+        tsGap,
+      );
 
       await volOracle.fillInObservations(uniV3Pool.address);
 
-      const oracleState = await volOracle.oracleStates(uniV3Pool.address);
-      expect(oracleState.lastBlockTimestamp).to.equal(await getLatestTimestamp());
-      expect(oracleState.lastObservationIndex).to.equal(mockObservationIndex0 + observationGrowth);
-      expect(oracleState.observationIndex).to.equal(observationGrowth);
-
-      const observation0 = await volOracle.getObservation(uniV3Pool.address, 1);
-      expect(observation0.blockTimestamp).to.equal(startTs + tsOffset);
-      expect(observation0.tickCumulative).to.equal(startTickCumulative + tsOffset);
-      expect(observation0.tickSquareCumulative).to.equal(tsOffset - mockObservationIndex0);
-
-      const observation1 = await volOracle.getObservation(uniV3Pool.address, 2);
-      expect(observation1.blockTimestamp).to.equal(startTs + tsOffset + 1);
-      expect(observation1.tickCumulative).to.equal(startTickCumulative + tsOffset + 1);
-      expect(observation1.tickSquareCumulative).to.equal(tsOffset + 1 - mockObservationIndex0);
+      await checkResult(uniV3Pool, volOracle, mockObservationIndex0, observationGrowth, 1, startTs, tsGap);
     });
 
     it("fills in observations correctly when uni observations grow and override", async function () {
-      await mine(observationCardinality * 2); // fast forward long enough so that we have enough ts range for the array
-
       const observationGrowth = observationCardinality - mockObservationIndex0 + 12;
-      const tsOffset = mockObservationIndex0 + 200;
-      await callFakeObservations(mockObservationIndex0 + 1, observationGrowth, startTs + tsOffset);
+      const tsGap = 200;
+      await fakeObservationInitializationAndGrowth(
+        uniV3Pool,
+        volOracle,
+        mockObservationIndex0,
+        observationGrowth,
+        1,
+        startTs,
+        tsGap,
+      );
 
       await volOracle.fillInObservations(uniV3Pool.address);
 
-      const oracleState = await volOracle.oracleStates(uniV3Pool.address);
-      expect(oracleState.lastBlockTimestamp).to.equal(await getLatestTimestamp());
-      expect(oracleState.lastObservationIndex).to.equal(
-        (mockObservationIndex0 + observationGrowth) % observationCardinality,
-      );
-      expect(oracleState.observationIndex).to.equal(observationGrowth);
-
-      const lastObservation = await volOracle.getObservation(uniV3Pool.address, observationGrowth);
-      expect(lastObservation.blockTimestamp).to.equal(startTs + tsOffset + observationGrowth - 1);
-      expect(lastObservation.tickCumulative).to.equal(startTickCumulative + tsOffset + observationGrowth - 1);
-      expect(lastObservation.tickSquareCumulative).to.equal(tsOffset + observationGrowth - 1 - mockObservationIndex0);
+      await checkResult(uniV3Pool, volOracle, mockObservationIndex0, observationGrowth, 1, startTs, tsGap);
     });
 
     // TODO: currently this test can't pass due to out of gas. We either need to optmize gas or set upper limit on per fill operation
@@ -394,82 +278,69 @@ describe("Vol Oracle tests", () => {
     });
 
     it("should not change state if the uni array stays the same", async function () {
-      await mine(10);
-
-      uniV3Pool.observations
-        .whenCalledWith(mockObservationIndex0 + 1)
-        .returns({ ...DUMB_OBSERVATION, ...{ initialized: false } });
+      const observationGrowth = 0;
+      const tsGap = 200;
+      await fakeObservationInitializationAndGrowth(
+        uniV3Pool,
+        volOracle,
+        mockObservationIndex0,
+        observationGrowth,
+        1,
+        startTs,
+        tsGap,
+      );
 
       await volOracle.fillInObservations(uniV3Pool.address);
-      const oracleState = await volOracle.oracleStates(uniV3Pool.address);
-      expect(oracleState.lastBlockTimestamp).to.equal(await getLatestTimestamp());
-      expect(oracleState.lastObservationIndex).to.equal(mockObservationIndex0);
-      expect(oracleState.observationIndex).to.equal(0);
+
+      await checkResult(uniV3Pool, volOracle, mockObservationIndex0, observationGrowth, 1, startTs, tsGap);
     });
 
     it("calculate the tickSquareCumulative correctly when the price is only going down", async function () {
-      await mine(observationCardinality);
+      const observationGrowth = 2;
+      const tsGap = 200;
 
-      const observationGrowth: number = 100;
-      const tsOffset: number = mockObservationIndex0 + 200;
-
-      const tickCumulativeData: number[] = new Array(observationGrowth);
-
-      for (let i = 0; i < observationGrowth; i++) {
-        tickCumulativeData[i] = startTickCumulative + mockObservationIndex0 - (tsOffset - mockObservationIndex0 + i);
-      }
-      await callFakeObservations(mockObservationIndex0 + 1, observationGrowth, startTs + tsOffset, tickCumulativeData);
-
-      uniV3Pool.observations
-        .whenCalledWith(mockObservationIndex0 + observationGrowth + 1)
-        .returns({ ...DUMB_OBSERVATION, ...{ initialized: false } });
+      await fakeObservationInitializationAndGrowth(
+        uniV3Pool,
+        volOracle,
+        mockObservationIndex0,
+        observationGrowth,
+        -1,
+        startTs,
+        tsGap,
+      );
 
       await volOracle.fillInObservations(uniV3Pool.address);
 
-      const oracleState = await volOracle.oracleStates(uniV3Pool.address);
-      expect(oracleState.lastBlockTimestamp).to.equal(await getLatestTimestamp());
-      expect(oracleState.lastObservationIndex).to.equal(mockObservationIndex0 + observationGrowth);
-      expect(oracleState.observationIndex).to.equal(observationGrowth);
-
-      const observation = await volOracle.getObservation(uniV3Pool.address, observationGrowth);
-      expect(observation.blockTimestamp).to.equal(startTs + tsOffset + observationGrowth - 1);
-      expect(observation.tickCumulative).to.equal(
-        startTickCumulative + mockObservationIndex0 - (tsOffset - mockObservationIndex0 + observationGrowth - 1),
-      );
-      expect(observation.tickSquareCumulative).to.equal(tsOffset - mockObservationIndex0 + observationGrowth - 1);
+      await checkResult(uniV3Pool, volOracle, mockObservationIndex0, observationGrowth, -1, startTs, tsGap);
     });
 
     it("calculate the tickSquareCumulative correctly when the price flunctuates", async function () {
-      await mine(observationCardinality);
-
       const observationGrowth: number = 4;
-      const tsOffset: number = mockObservationIndex0 + 100;
+      const tsGap = 100;
 
       // tick [1, -2, 3, -4]
-      const tickCumulativeData: number[] = new Array(4);
-      tickCumulativeData[0] = startTickCumulative + tsOffset;
-      tickCumulativeData[1] = tickCumulativeData[0] - 2;
-      tickCumulativeData[2] = tickCumulativeData[1] + 3;
-      tickCumulativeData[3] = tickCumulativeData[2] - 4;
+      const tickData = new Array(mockObservationIndex0 + 1 + observationGrowth);
+      for (let i = 0; i <= mockObservationIndex0; i++) {
+        tickData[i] = 1;
+      }
+      tickData[mockObservationIndex0 + 1] = 1;
+      tickData[mockObservationIndex0 + 2] = -2;
+      tickData[mockObservationIndex0 + 3] = 3;
+      tickData[mockObservationIndex0 + 4] = -4;
 
-      await callFakeObservations(mockObservationIndex0 + 1, observationGrowth, startTs + tsOffset, tickCumulativeData);
-
-      uniV3Pool.observations
-        .whenCalledWith(mockObservationIndex0 + observationGrowth + 1)
-        .returns({ ...DUMB_OBSERVATION, ...{ initialized: false } });
+      await fakeObservationInitializationAndGrowth(
+        uniV3Pool,
+        volOracle,
+        mockObservationIndex0,
+        observationGrowth,
+        tickData,
+        startTs,
+        tsGap,
+      );
 
       await volOracle.fillInObservations(uniV3Pool.address);
 
-      const oracleState = await volOracle.oracleStates(uniV3Pool.address);
-      expect(oracleState.lastBlockTimestamp).to.equal(await getLatestTimestamp());
-      expect(oracleState.lastObservationIndex).to.equal(mockObservationIndex0 + observationGrowth);
-      expect(oracleState.observationIndex).to.equal(observationGrowth);
-
-      const observation = await volOracle.getObservation(uniV3Pool.address, observationGrowth);
-      expect(observation.blockTimestamp).to.equal(startTs + tsOffset + observationGrowth - 1);
-      expect(observation.tickCumulative).to.equal(tickCumulativeData[3]);
-      // (tsOffset - mockObservationIndex0) * 1 + 4 + 9 + 16
-      expect(observation.tickSquareCumulative).to.equal((tsOffset - mockObservationIndex0) * 1 + 4 + 9 + 16);
+      await checkResult(uniV3Pool, volOracle, mockObservationIndex0, observationGrowth, tickData, startTs, tsGap);
     });
   });
 });
