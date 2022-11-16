@@ -37,7 +37,6 @@ describe("Vol Oracle tests", () => {
   });
 
   it("tests constants", async () => {
-    expect(await volOracle.OBSERVATION_SIZE()).to.equal(OBSERVATION_SIZE);
     expect(await volOracle.UNIV3_MAX_CARDINALITY()).to.equal(UNIV3_MAX_CARDINALITY);
     expect(await volOracle.maxFill()).to.equal(maxFill);
   });

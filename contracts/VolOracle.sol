@@ -2,45 +2,23 @@
 pragma solidity >=0.8.4;
 
 import { IUniswapV3Pool } from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import { VolOracleLib } from "./VolOracleLib.sol";
 
 contract VolOracle {
-    // constructor
-    // initializes a uniswap
-
-    struct VolObservation {
-        // the block timestamp of the observation
-        uint32 blockTimestamp;
-        // the tick accumulator, i.e. tick * time elapsed since the pool was first initialized
-        int56 tickCumulative;
-        // the tick square accumulator, i.e. tick * tick * time elapsed since the oracle was first initialized
-        uint112 tickSquareCumulative;
-    }
+    // usiVolOracleLibary for VolOracleState;
+    using VolOracleLib for VolOracleLib.VolObservation;
+    using VolOracleLib for VolOracleLib.VolOracleState;
 
     // observation size
     // stores 30 days of data (with some buffer)
-    uint256 public constant OBSERVATION_SIZE = 345600;
     uint256 public constant UNIV3_MAX_CARDINALITY = 65535;
     uint256 public constant UNIV3_MIN_CARDINALITY = 1000;
 
     // the largest number of observations we can fill at one time, this depends on the gas consumption
     uint256 public maxFill;
 
-    struct VolOracleState {
-        // @dev Stores Observation arrays for each pool
-        // TODO: can we use constant here
-        VolObservation[345600] observations;
-        // @dev Stores timestamp of the last uniswap observation which was filled in
-        uint256 lastBlockTimestamp;
-        // @dev last observation index in uniswap pool
-        uint256 lastCheckedUniswapObservationIndex;
-        // @dev observation index for volatility observations
-        uint256 observationIndex;
-        // @dev marked as true if the pool is initialized
-        bool initialized;
-    }
-
     // @dev Stores Observation arrays for each pool
-    mapping(address => VolOracleState) public oracleStates;
+    mapping(address => VolOracleLib.VolOracleState) public oracleStates;
 
     constructor(uint256 _maxFill) {
         maxFill = _maxFill;
@@ -50,8 +28,8 @@ contract VolOracle {
         return oracleStates[_pool].observations.length;
     }
 
-    function getObservation(address _pool, uint256 id) public view returns (VolObservation memory) {
-        VolObservation memory observation = oracleStates[_pool].observations[id];
+    function getObservation(address _pool, uint256 id) public view returns (VolOracleLib.VolObservation memory) {
+        VolOracleLib.VolObservation memory observation = oracleStates[_pool].observations[id];
         return observation;
     }
 
@@ -63,10 +41,11 @@ contract VolOracle {
         require(observationCardinality >= UNIV3_MIN_CARDINALITY, "Pool not at min cardinality");
         // TODO: if pool is not at max cardinality then grow it
         // initializing the pool to max size
-        VolOracleState storage oracleState = oracleStates[_pool];
+        VolOracleLib.VolOracleState storage oracleState = oracleStates[_pool];
         (uint32 blockTimestamp, int56 tickCumulative, , ) = uniPool.observations(observationIndex);
         // set the tickSquareCumulative to 0 during initialization
-        oracleState.observations[0] = VolObservation(blockTimestamp, tickCumulative, 0);
+
+        oracleState.observations[0] = VolOracleLib.VolObservation(blockTimestamp, tickCumulative, 0);
 
         oracleState.lastBlockTimestamp = blockTimestamp;
         oracleState.lastCheckedUniswapObservationIndex = observationIndex;
@@ -90,7 +69,7 @@ contract VolOracle {
             (oldestObservationTs, , , ) = uniPool.observations(0);
         }
 
-        VolOracleState storage volOracleState = oracleStates[_pool];
+        VolOracleLib.VolOracleState storage volOracleState = oracleStates[_pool];
 
         // if the uni pool has overriden the whole array as oracle is down for too long, directly start from the
         // earliest available
@@ -116,7 +95,7 @@ contract VolOracle {
 
         IUniswapV3Pool uniPool = IUniswapV3Pool(_pool);
         (, , , uint16 poolCardinality, , , ) = uniPool.slot0();
-        VolOracleState storage volOracleState = oracleStates[_pool];
+        VolOracleLib.VolOracleState storage volOracleState = oracleStates[_pool];
         uint256 volObservationIndex = volOracleState.observationIndex;
         // overwriting endIndex to be batch size
         if (endIndex > startIndex) {
@@ -130,14 +109,14 @@ contract VolOracle {
             );
             // this observation has not been initialized, probably due to the increase of cardinality
             if (!initialized) continue;
-            VolObservation storage prevObservation = volOracleState.observations[volObservationIndex];
+            VolOracleLib.VolObservation storage prevObservation = volOracleState.observations[volObservationIndex];
 
             uint32 timeDelta = blockTimestamp - prevObservation.blockTimestamp;
             int56 tickDelta = tickCumulative - prevObservation.tickCumulative;
             uint112 tickSquareDelta = uint112(int112((tickDelta / int56(uint56(timeDelta)))**2)) * timeDelta;
 
-            volObservationIndex = (volObservationIndex + 1) % OBSERVATION_SIZE;
-            volOracleState.observations[volObservationIndex] = VolObservation(
+            volObservationIndex = (volObservationIndex + 1) % VolOracleLib.OBSERVATION_SIZE;
+            volOracleState.observations[volObservationIndex] = VolOracleLib.VolObservation(
                 blockTimestamp,
                 tickCumulative,
                 tickSquareDelta + prevObservation.tickSquareCumulative
@@ -150,74 +129,11 @@ contract VolOracle {
         volOracleState.lastCheckedUniswapObservationIndex = endIndex % poolCardinality;
     }
 
-    function getObservationSize(address _pool) public view returns (uint256 observationSize) {
-        return oracleStates[_pool].observations.length;
-    }
-
-    function getObservation(address _pool, uint256 _idx) public view returns (VolObservation memory) {
-        return oracleStates[_pool].observations[_idx];
-    }
-
-
     // @dev get the standdevation given specified days range from now
-    function getVol(address _pool, uint32 _daysToNow) public view returns(uint256 standardDeviation) {
+    function getVol(address _pool, uint32 _daysToNow) public view returns (uint256 standardDeviation) {
         uint32 target = uint32(block.timestamp) - _daysToNow * uint32(1 days);
         // binary search to start index.
-        uint256 startIndex = getObservationIndexBeforeOrAtTarget(_pool, target);
         // TODO: edge case - 1st element of the array
-
-        return calculateVol(_pool, startIndex);
+        return oracleStates[_pool].calculateVol(target);
     }
-
-    // TODO: WIP
-    // @dev calculate the standdevation from startIndex to endIndex
-    function calculateVol(address _pool, uint256 startIndex) internal view returns(uint256 stanDeviation) {
-        VolOracleState memory volOracleState = oracleStates[_pool];
-        uint256 endIndex = volOracleState.observationIndex;
-        VolObservation memory startObservation = volOracleState.observations[startIndex];
-        VolObservation memory endObservation = volOracleState.observations[endIndex];
-        uint256 tickSquareSum = endObservation.tickSquareCumulative - startObservation.tickSquareCumulative;
-        uint256 timeEclapsed = uint256(endObservation.blockTimestamp - startObservation.blockTimestamp);
-        uint256 tickAvg = uint256(uint56(endObservation.tickCumulative - startObservation.tickCumulative)) / timeEclapsed;
-        uint256 stddev = (tickSquareSum - tickAvg * tickAvg * timeEclapsed) / timeEclapsed;
-        return stddev;
-    }
-
-    // @dev get the obesrvation index right before or at the target timestamp, using binary search
-    function getObservationIndexBeforeOrAtTarget(
-        address _pool,
-        uint32 _target
-    ) private view returns(uint256 observationIndexAfterTarget) {
-        VolOracleState memory volOracleState = oracleStates[_pool];
-        uint256 l = (volOracleState.observationIndex + 1) % OBSERVATION_SIZE;
-        uint256 r = l + OBSERVATION_SIZE - 1;
-        uint256 idx;
-        while (true) {
-            idx = (l + r) / 2;
-
-            VolObservation memory curObservation = volOracleState.observations[idx % OBSERVATION_SIZE];
-            if (curObservation.blockTimestamp == 0) {
-                // hasn't been initialized
-                l = idx + 1;
-                continue;
-            }
-
-            if (l == r) break;
-            if (curObservation.blockTimestamp <= _target) {
-                l = idx + 1;
-            } else {
-                r = idx - 1;
-            }
-        }
-
-        l = l % OBSERVATION_SIZE;
-        VolObservation memory observation = volOracleState.observations[l];
-        if (observation.blockTimestamp <= _target) {
-            return l;
-        } else {
-            return (l - 1 + OBSERVATION_SIZE) % OBSERVATION_SIZE;
-        }
-    }
-
-
 }
