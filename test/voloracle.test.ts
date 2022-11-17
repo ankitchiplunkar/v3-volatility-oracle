@@ -24,19 +24,22 @@ describe("Vol Oracle tests", () => {
   let volOracle: VolOracle;
   let deployer: SignerWithAddress;
   let uniV3Pool: FakeContract<IUniswapV3Pool>;
+  let volOracleFactory: VolOracle__factory;
   const OBSERVATION_SIZE = 345600;
   const UNIV3_MAX_CARDINALITY = 65535;
+  const maxFill = 500;
 
   beforeEach("deploy contracts", async () => {
     [deployer] = await ethers.getSigners();
-    const volOracleFactory = <VolOracle__factory>await ethers.getContractFactory("VolOracle");
-    volOracle = await volOracleFactory.connect(deployer).deploy();
+    volOracleFactory = <VolOracle__factory>await ethers.getContractFactory("VolOracle");
+    volOracle = await volOracleFactory.connect(deployer).deploy(maxFill);
     uniV3Pool = await smock.fake(POOL_ABI);
   });
 
   it("tests constants", async () => {
     expect(await volOracle.OBSERVATION_SIZE()).to.equal(OBSERVATION_SIZE);
     expect(await volOracle.UNIV3_MAX_CARDINALITY()).to.equal(UNIV3_MAX_CARDINALITY);
+    expect(await volOracle.maxFill()).to.equal(maxFill);
   });
 
   describe("Pool initialization", () => {
@@ -44,7 +47,6 @@ describe("Vol Oracle tests", () => {
       uniV3Pool.slot0.returns(DUMB_SLOT);
       await expect(volOracle.initPool(uniV3Pool.address)).to.be.revertedWith("Pool not at min cardinality");
     });
-
     it("Should fail if the pool has already been initialized", async () => {
       const mockObservationIndex = 10;
       uniV3Pool.slot0.returns({
@@ -76,11 +78,10 @@ describe("Vol Oracle tests", () => {
         .whenCalledWith(mockObservationIndex)
         .returns({ ...DUMB_OBSERVATION, ...{ blockTimestamp: ts, tickCumulative: tickCumulative } });
       await volOracle.initPool(uniV3Pool.address);
-      const latestBlock = await ethers.provider.getBlock("latest");
       const oracleState = await volOracle.oracleStates(uniV3Pool.address);
       expect(oracleState.observationIndex).to.equal(0);
       expect(oracleState.lastObservationIndex).to.equal(mockObservationIndex);
-      expect(oracleState.lastBlockTimestamp).to.equal(latestBlock.timestamp);
+      expect(oracleState.lastBlockTimestamp).to.equal(ts);
       const observation = await volOracle.getObservation(uniV3Pool.address, 0);
       expect(observation.blockTimestamp).to.equal(ts);
       expect(observation.tickCumulative).to.equal(tickCumulative);
@@ -341,6 +342,61 @@ describe("Vol Oracle tests", () => {
       await volOracle.fillInObservations(uniV3Pool.address);
 
       await checkResult(uniV3Pool, volOracle, mockObservationIndex0, observationGrowth, tickData, startTs, tsGap);
+    });
+  });
+
+  describe("Fill observations in batches", function () {
+    const mockObservationIndex0 = 700;
+    const smallMaxFill = 10;
+    let startTs: number;
+
+    beforeEach("Prepare Uni Pool and Vol Oracle", async function () {
+      volOracle = await volOracleFactory.connect(deployer).deploy(smallMaxFill);
+      startTs = (await getLatestTimestamp()) - mockObservationIndex0;
+    });
+
+    it("fills in first observations batch", async function () {
+      const observationGrowth = 20;
+      const tsGap = 200;
+
+      await fakeObservationInitializationAndGrowth(
+        uniV3Pool,
+        volOracle,
+        mockObservationIndex0,
+        observationGrowth,
+        1,
+        startTs,
+        tsGap,
+      );
+
+      await volOracle.fillInObservations(uniV3Pool.address);
+
+      await checkResult(uniV3Pool, volOracle, mockObservationIndex0, smallMaxFill, 1, startTs, tsGap);
+    });
+
+    it("fills in observations for multiple batches", async function () {
+      const observationGrowth = 30;
+      const tsGap = 200;
+
+      await fakeObservationInitializationAndGrowth(
+        uniV3Pool,
+        volOracle,
+        mockObservationIndex0,
+        observationGrowth,
+        1,
+        startTs,
+        tsGap,
+      );
+
+      // fills first batch
+      await volOracle.fillInObservations(uniV3Pool.address);
+      await checkResult(uniV3Pool, volOracle, mockObservationIndex0, smallMaxFill, 1, startTs, tsGap);
+      // fills second batch
+      await volOracle.fillInObservations(uniV3Pool.address);
+      await checkResult(uniV3Pool, volOracle, mockObservationIndex0, 2 * smallMaxFill, 1, startTs, tsGap);
+      // fills third batch
+      await volOracle.fillInObservations(uniV3Pool.address);
+      await checkResult(uniV3Pool, volOracle, mockObservationIndex0, 3 * smallMaxFill, 1, startTs, tsGap);
     });
   });
 });

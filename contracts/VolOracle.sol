@@ -21,23 +21,30 @@ contract VolOracle {
     uint256 public constant OBSERVATION_SIZE = 345600;
     uint256 public constant UNIV3_MAX_CARDINALITY = 65535;
     uint256 public constant UNIV3_MIN_CARDINALITY = 1000;
+
     // the largest number of observations we can fill at one time, this depends on the gas consumption
-    //  uint256 public const MAX_FILL = 400;
+    uint256 public maxFill;
 
     struct VolOracleState {
         // @dev Stores Observation arrays for each pool
         // TODO: can we use constant here
         VolObservation[345600] observations;
-        // @dev Stores lastBlockTimestamp when the observation was initialized for the pool
+        // @dev Stores timestamp of the last uniswap observation which was filled in
         uint256 lastBlockTimestamp;
         // @dev last observation index in uniswap pool
         uint256 lastObservationIndex;
         // @dev observation index for volatility observations
         uint256 observationIndex;
+        // @dev marked as true if the pool is initialized
+        bool initialized;
     }
 
     // @dev Stores Observation arrays for each pool
     mapping(address => VolOracleState) public oracleStates;
+
+    constructor(uint256 _maxFill) {
+        maxFill = _maxFill;
+    }
 
     function getObservationSize(address _pool) public view returns (uint256 observationSize) {
         return oracleStates[_pool].observations.length;
@@ -49,7 +56,7 @@ contract VolOracle {
     }
 
     function initPool(address _pool) external {
-        require(oracleStates[_pool].lastBlockTimestamp == 0, "Pool already initialized");
+        require(oracleStates[_pool].initialized == false, "Pool already initialized");
         // only initialize pools which have max cardinality
         IUniswapV3Pool uniPool = IUniswapV3Pool(_pool);
         (, , uint16 observationIndex, uint16 observationCardinality, , , ) = uniPool.slot0();
@@ -60,11 +67,10 @@ contract VolOracle {
         (uint32 blockTimestamp, int56 tickCumulative, , ) = uniPool.observations(observationIndex);
         // set the tickSquareCumulative to 0 during initialization
         oracleState.observations[0] = VolObservation(blockTimestamp, tickCumulative, 0);
-        // TODO: should we use current blocktimestamp or the last observation timestamp from uni here
-
-        oracleState.lastBlockTimestamp = block.timestamp;
+        oracleState.lastBlockTimestamp = blockTimestamp;
         oracleState.lastObservationIndex = observationIndex;
         oracleState.observationIndex = 0;
+        oracleState.initialized = true;
     }
 
     // returns the start and end indexes for filling intermediate values
@@ -79,6 +85,7 @@ contract VolOracle {
         // The next index might not be initialized if the cardinality is in the process of increasing
         // In this case the oldest observation is always in index 0
         if (!initialized) {
+            oldestObservationIndex = 0;
             (oldestObservationTs, , , ) = uniPool.observations(0);
         }
 
@@ -102,7 +109,7 @@ contract VolOracle {
     }
 
     function fillInObservations(address _pool) external {
-        require(oracleStates[_pool].lastBlockTimestamp > 0, "Pool not initialized");
+        require(oracleStates[_pool].initialized == true, "Pool not initialized");
 
         (uint256 startIndex, uint256 endIndex) = fetchIntermediateIndexes(_pool);
 
@@ -110,6 +117,12 @@ contract VolOracle {
         (, , , uint16 poolCardinality, , , ) = uniPool.slot0();
         VolOracleState storage volOracleState = oracleStates[_pool];
         uint256 volObservationIndex = volOracleState.observationIndex;
+        // overwriting endIndex to be batch size
+        if (endIndex > startIndex) {
+            if ((endIndex - startIndex) > maxFill) {
+                endIndex = startIndex + maxFill - 1;
+            }
+        }
         for (uint256 poolObservationIndex = startIndex; poolObservationIndex <= endIndex; poolObservationIndex++) {
             (uint32 blockTimestamp, int56 tickCumulative, , bool initialized) = uniPool.observations(
                 poolObservationIndex % poolCardinality
@@ -129,9 +142,9 @@ contract VolOracle {
                 tickSquareDelta + prevObservation.tickSquareCumulative
             );
         }
-
+        (uint32 lastBlockTimestamp, , , ) = uniPool.observations(endIndex % poolCardinality);
         volOracleState.observationIndex = volObservationIndex;
         volOracleState.lastObservationIndex = endIndex % poolCardinality;
-        volOracleState.lastBlockTimestamp = block.timestamp;
+        volOracleState.lastBlockTimestamp = uint256(lastBlockTimestamp);
     }
 }

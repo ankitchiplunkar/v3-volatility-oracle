@@ -174,7 +174,6 @@ export async function getExpectedStates(
       lastTickSquareCumulative = tickSquareAccumulator;
     }
   }
-
   const expectedReturn = {
     lastObservationIndex: (initialObservationIndex + observationGrowth) % OBSERVATION_CARDINALITY,
     observationIndex: observationGrowth,
