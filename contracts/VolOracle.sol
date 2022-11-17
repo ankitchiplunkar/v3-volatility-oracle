@@ -29,12 +29,14 @@ contract VolOracle {
         // @dev Stores Observation arrays for each pool
         // TODO: can we use constant here
         VolObservation[345600] observations;
-        // @dev Stores lastBlockTimestamp when the observation was initialized for the pool
+        // @dev Stores timestamp of the last uniswap observation which was filled in
         uint256 lastBlockTimestamp;
         // @dev last observation index in uniswap pool
         uint256 lastObservationIndex;
         // @dev observation index for volatility observations
         uint256 observationIndex;
+        // @dev marked as true if the pool is initialized
+        bool initialized;
     }
 
     // @dev Stores Observation arrays for each pool
@@ -54,7 +56,7 @@ contract VolOracle {
     }
 
     function initPool(address _pool) external {
-        require(oracleStates[_pool].lastBlockTimestamp == 0, "Pool already initialized");
+        require(oracleStates[_pool].initialized == false, "Pool already initialized");
         // only initialize pools which have max cardinality
         IUniswapV3Pool uniPool = IUniswapV3Pool(_pool);
         (, , uint16 observationIndex, uint16 observationCardinality, , , ) = uniPool.slot0();
@@ -65,11 +67,10 @@ contract VolOracle {
         (uint32 blockTimestamp, int56 tickCumulative, , ) = uniPool.observations(observationIndex);
         // set the tickSquareCumulative to 0 during initialization
         oracleState.observations[0] = VolObservation(blockTimestamp, tickCumulative, 0);
-        // TODO: should we use current blocktimestamp or the last observation timestamp from uni here
-
-        oracleState.lastBlockTimestamp = block.timestamp;
+        oracleState.lastBlockTimestamp = blockTimestamp;
         oracleState.lastObservationIndex = observationIndex;
         oracleState.observationIndex = 0;
+        oracleState.initialized = true;
     }
 
     // returns the start and end indexes for filling intermediate values
@@ -108,7 +109,7 @@ contract VolOracle {
     }
 
     function fillInObservations(address _pool) external {
-        require(oracleStates[_pool].lastBlockTimestamp > 0, "Pool not initialized");
+        require(oracleStates[_pool].initialized == true, "Pool not initialized");
 
         (uint256 startIndex, uint256 endIndex) = fetchIntermediateIndexes(_pool);
 

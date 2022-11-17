@@ -47,7 +47,6 @@ describe("Vol Oracle tests", () => {
       uniV3Pool.slot0.returns(DUMB_SLOT);
       await expect(volOracle.initPool(uniV3Pool.address)).to.be.revertedWith("Pool not at min cardinality");
     });
-
     it("Should fail if the pool has already been initialized", async () => {
       const mockObservationIndex = 10;
       uniV3Pool.slot0.returns({
@@ -79,11 +78,10 @@ describe("Vol Oracle tests", () => {
         .whenCalledWith(mockObservationIndex)
         .returns({ ...DUMB_OBSERVATION, ...{ blockTimestamp: ts, tickCumulative: tickCumulative } });
       await volOracle.initPool(uniV3Pool.address);
-      const latestBlock = await ethers.provider.getBlock("latest");
       const oracleState = await volOracle.oracleStates(uniV3Pool.address);
       expect(oracleState.observationIndex).to.equal(0);
       expect(oracleState.lastObservationIndex).to.equal(mockObservationIndex);
-      expect(oracleState.lastBlockTimestamp).to.equal(latestBlock.timestamp);
+      expect(oracleState.lastBlockTimestamp).to.equal(ts);
       const observation = await volOracle.getObservation(uniV3Pool.address, 0);
       expect(observation.blockTimestamp).to.equal(ts);
       expect(observation.tickCumulative).to.equal(tickCumulative);
@@ -376,7 +374,7 @@ describe("Vol Oracle tests", () => {
       await checkResult(uniV3Pool, volOracle, mockObservationIndex0, smallMaxFill, 1, startTs, tsGap);
     });
 
-    it.only("fills in observations for multiple batches", async function () {
+    it("fills in observations for multiple batches", async function () {
       const observationGrowth = 30;
       const tsGap = 200;
 
