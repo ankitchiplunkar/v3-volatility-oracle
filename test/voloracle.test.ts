@@ -80,8 +80,8 @@ describe("Vol Oracle tests", () => {
       await volOracle.initPool(uniV3Pool.address);
       const oracleState = await volOracle.oracleStates(uniV3Pool.address);
       expect(oracleState.observationIndex).to.equal(0);
-      expect(oracleState.lastObservationIndex).to.equal(mockObservationIndex);
       expect(oracleState.lastBlockTimestamp).to.equal(ts);
+      expect(oracleState.lastCheckedUniswapObservationIndex).to.equal(mockObservationIndex);
       const observation = await volOracle.getObservation(uniV3Pool.address, 0);
       expect(observation.blockTimestamp).to.equal(ts);
       expect(observation.tickCumulative).to.equal(tickCumulative);
@@ -267,7 +267,7 @@ describe("Vol Oracle tests", () => {
 
       const oracleState = await volOracle.oracleStates(uniV3Pool.address);
       expect(oracleState.lastBlockTimestamp).to.equal(await getLatestTimestamp());
-      expect(oracleState.lastObservationIndex).to.equal(
+      expect(oracleState.lastCheckedUniswapObservationIndex).to.equal(
         (mockObservationIndex0 + observationGrowth) % observationCardinality,
       );
       expect(oracleState.observationIndex).to.equal(observationCardinality);

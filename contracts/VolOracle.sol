@@ -32,7 +32,7 @@ contract VolOracle {
         // @dev Stores timestamp of the last uniswap observation which was filled in
         uint256 lastBlockTimestamp;
         // @dev last observation index in uniswap pool
-        uint256 lastObservationIndex;
+        uint256 lastCheckedUniswapObservationIndex;
         // @dev observation index for volatility observations
         uint256 observationIndex;
         // @dev marked as true if the pool is initialized
@@ -67,8 +67,9 @@ contract VolOracle {
         (uint32 blockTimestamp, int56 tickCumulative, , ) = uniPool.observations(observationIndex);
         // set the tickSquareCumulative to 0 during initialization
         oracleState.observations[0] = VolObservation(blockTimestamp, tickCumulative, 0);
+
         oracleState.lastBlockTimestamp = blockTimestamp;
-        oracleState.lastObservationIndex = observationIndex;
+        oracleState.lastCheckedUniswapObservationIndex = observationIndex;
         oracleState.observationIndex = 0;
         oracleState.initialized = true;
     }
@@ -97,10 +98,10 @@ contract VolOracle {
             startIndex = oldestObservationIndex;
             endIndex = latestPoolObservationIndex + poolCardinality;
         } else {
-            startIndex = volOracleState.lastObservationIndex + 1;
+            startIndex = volOracleState.lastCheckedUniswapObservationIndex + 1;
             // both inclusive
             // stay the same
-            if (latestPoolObservationIndex >= volOracleState.lastObservationIndex) {
+            if (latestPoolObservationIndex >= volOracleState.lastCheckedUniswapObservationIndex) {
                 endIndex = latestPoolObservationIndex;
             } else {
                 endIndex = latestPoolObservationIndex + poolCardinality;
@@ -144,7 +145,8 @@ contract VolOracle {
         }
         (uint32 lastBlockTimestamp, , , ) = uniPool.observations(endIndex % poolCardinality);
         volOracleState.observationIndex = volObservationIndex;
-        volOracleState.lastObservationIndex = endIndex % poolCardinality;
+
         volOracleState.lastBlockTimestamp = uint256(lastBlockTimestamp);
+        volOracleState.lastCheckedUniswapObservationIndex = endIndex % poolCardinality;
     }
 }

@@ -175,7 +175,7 @@ export async function getExpectedStates(
     }
   }
   const expectedReturn = {
-    lastObservationIndex: (initialObservationIndex + observationGrowth) % OBSERVATION_CARDINALITY,
+    lastCheckedUniswapObservationIndex: (initialObservationIndex + observationGrowth) % OBSERVATION_CARDINALITY,
     observationIndex: observationGrowth,
     firstObservation: {
       blockTimestamp: startTs + initialObservationIndex,
@@ -208,7 +208,7 @@ export async function checkResult(
 
   const oracleState = await volOracle.oracleStates(uniV3Pool.address);
 
-  expect(oracleState.lastObservationIndex).to.equal(expectedResult.lastObservationIndex);
+  expect(oracleState.lastCheckedUniswapObservationIndex).to.equal(expectedResult.lastCheckedUniswapObservationIndex);
   expect(oracleState.observationIndex).to.equal(expectedResult.observationIndex);
 
   const observation0 = await volOracle.getObservation(uniV3Pool.address, 0);
