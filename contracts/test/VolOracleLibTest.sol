@@ -29,6 +29,7 @@ contract VolOracleLibTest {
     }
 
     function batchUpdate(ObservationParams[] calldata params) external {
+        require(params.length > 0, "param length should be greater than 0");
         uint256 startIndex = oracleState.lastBlockTimestamp == 0 ? 0 : oracleState.observationIndex + 1;
         for (uint256 i = 0; i < params.length; i++) {
             oracleState.observations[(startIndex + i) % VolOracleLib.OBSERVATION_SIZE] = VolOracleLib.VolObservation(
@@ -37,8 +38,10 @@ contract VolOracleLibTest {
                 params[i].tickSquareCumulative
             );
         }
-        oracleState.lastBlockTimestamp = block.timestamp;
+
+        oracleState.lastBlockTimestamp = params[params.length - 1].blockTimestamp;
         oracleState.observationIndex = (startIndex + params.length - 1) % VolOracleLib.OBSERVATION_SIZE;
+        oracleState.initialized = true;
     }
 
     /**

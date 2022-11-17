@@ -47,7 +47,7 @@ library VolOracleLib {
         view
         returns (uint256 observationIndexAfterTarget)
     {
-        require(self.lastBlockTimestamp != 0, "the state has not been initialized");
+        require(self.initialized, "the state has not been initialized");
         uint256 left = (self.observationIndex + 1) % OBSERVATION_SIZE; //oldest
         uint32 oldestTimestamp = self.observations[left].blockTimestamp;
         if (oldestTimestamp == 0) {
