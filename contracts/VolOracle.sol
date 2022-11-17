@@ -132,8 +132,7 @@ contract VolOracle {
     // @dev get the standdevation given specified days range from now
     function getVol(address _pool, uint32 _daysToNow) public view returns (uint256 standardDeviation) {
         uint32 target = uint32(block.timestamp) - _daysToNow * uint32(1 days);
-        // binary search to start index.
-        // TODO: edge case - 1st element of the array
+
         return oracleStates[_pool].calculateVol(target);
     }
 }

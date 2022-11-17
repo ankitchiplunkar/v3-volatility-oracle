@@ -25,54 +25,63 @@ library VolOracleLib {
         bool initialized;
     }
 
-    // TODO: WIP
     // @dev calculate the standdevation from startIndex to endIndex
     function calculateVol(VolOracleState storage self, uint32 target) internal view returns (uint256 stanDeviation) {
         uint256 startIndex = getObservationIndexBeforeOrAtTarget(self, target);
         uint256 endIndex = self.observationIndex;
+        require(startIndex != endIndex, "no new observations to calculate the volatility");
         VolOracleLib.VolObservation memory startObservation = self.observations[startIndex];
         VolOracleLib.VolObservation memory endObservation = self.observations[endIndex];
         uint256 tickSquareSum = endObservation.tickSquareCumulative - startObservation.tickSquareCumulative;
         uint256 timeEclapsed = uint256(endObservation.blockTimestamp - startObservation.blockTimestamp);
         uint256 tickAvg = uint256(uint56(endObservation.tickCumulative - startObservation.tickCumulative)) /
             timeEclapsed;
-        uint256 stddev = (tickSquareSum - tickAvg * tickAvg * timeEclapsed) / timeEclapsed;
+        uint256 stddev = (tickSquareSum - tickAvg * tickAvg * timeEclapsed) / (timeEclapsed - 1);
         return stddev;
     }
 
     // @dev get the obesrvation index right before or at the target timestamp, using binary search
+    // @return the index of the observation which is before or at the target timestamp
     function getObservationIndexBeforeOrAtTarget(VolOracleState storage self, uint32 _target)
         private
         view
         returns (uint256 observationIndexAfterTarget)
     {
-        uint256 l = (self.observationIndex + 1) % OBSERVATION_SIZE;
-        uint256 r = l + OBSERVATION_SIZE - 1;
+        require(self.lastBlockTimestamp != 0, "the state has not been initialized");
+        uint256 left = (self.observationIndex + 1) % OBSERVATION_SIZE; //oldest
+        uint32 oldestTimestamp = self.observations[left].blockTimestamp;
+        if (oldestTimestamp == 0) {
+            oldestTimestamp = self.observations[0].blockTimestamp;
+        }
+        require(oldestTimestamp <= _target, "target timestamp is older than the oldest observation");
+        uint256 right = left + OBSERVATION_SIZE - 1; //latest
         uint256 idx;
         while (true) {
-            idx = (l + r) / 2;
+            if (left >= right) break;
 
-            VolOracleLib.VolObservation memory curObservation = self.observations[idx % OBSERVATION_SIZE];
+            idx = (left + right) / 2;
+
+            VolOracleLib.VolObservation storage curObservation = self.observations[idx % OBSERVATION_SIZE];
             if (curObservation.blockTimestamp == 0) {
                 // hasn't been initialized
-                l = idx + 1;
+                left = idx + 1;
                 continue;
             }
 
-            if (l == r) break;
             if (curObservation.blockTimestamp <= _target) {
-                l = idx + 1;
+                left = idx + 1;
             } else {
-                r = idx - 1;
+                right = idx - 1;
             }
         }
 
-        l = l % OBSERVATION_SIZE;
-        VolOracleLib.VolObservation memory observation = self.observations[l];
+        left = left % OBSERVATION_SIZE;
+        VolOracleLib.VolObservation memory observation = self.observations[left];
+
         if (observation.blockTimestamp <= _target) {
-            return l;
+            return left;
         } else {
-            return (l - 1 + OBSERVATION_SIZE) % OBSERVATION_SIZE;
+            return (left + OBSERVATION_SIZE - 1) % OBSERVATION_SIZE;
         }
     }
 }

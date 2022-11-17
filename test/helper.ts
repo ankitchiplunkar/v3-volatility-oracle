@@ -5,6 +5,7 @@ import { ethers } from "hardhat";
 
 import { IUniswapV3Pool } from "../src/types/@uniswap/v3-core/contracts/interfaces";
 import { VolOracle } from "../src/types/contracts";
+import { VolOracleLibTest } from "../src/types/contracts/test";
 
 const { expect } = chai;
 
@@ -27,7 +28,7 @@ export const DUMB_OBSERVATION = {
 
 const OBSERVATION_CARDINALITY = 1000;
 const START_TICK_CUMULATIVE = 10000;
-
+export const OBSERVATION_SIZE = 345600;
 /**
  * fake slot0 and observations return for uniswap. ≈
  * @param firstIndex the index of the first observation to be mocked out
@@ -116,6 +117,7 @@ export async function fakeObservationInitializationAndGrowth(
   }
 
   await time.setNextBlockTimestamp(ts);
+
   await volOracle.initPool(uniV3Pool.address);
 
   // mimic the growth of observations
@@ -220,6 +222,32 @@ export async function checkResult(
   expect(observation1.blockTimestamp).to.equal(expectedResult.lastobservation.blockTimestamp);
   expect(observation1.tickCumulative).to.equal(expectedResult.lastobservation.tickCummulative);
   expect(observation1.tickSquareCumulative).to.equal(expectedResult.lastobservation.tickSquareCumulative);
+}
+
+export async function fakeVolOracleData(
+  volOracleLibTest: VolOracleLibTest,
+  size: number,
+  startTs: number,
+  observationData?: [number, number, number][],
+) {
+  const observations = new Array(size);
+
+  for (let i = 0; i < size; ++i) {
+    if (typeof observationData != "undefined") {
+      observations[i % OBSERVATION_SIZE] = {
+        blockTimestamp: startTs + observationData[i][0],
+        tickCumulative: observationData[i][1],
+        tickSquareCumulative: observationData[i][2],
+      };
+    } else {
+      observations[i % OBSERVATION_SIZE] = {
+        blockTimestamp: startTs + i,
+        tickCumulative: 1,
+        tickSquareCumulative: 1,
+      };
+    }
+  }
+  await volOracleLibTest.batchUpdate(observations);
 }
 
 export async function getLatestTimestamp() {
