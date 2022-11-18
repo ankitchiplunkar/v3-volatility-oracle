@@ -44,14 +44,9 @@ contract VolOracleLibTest {
         oracleState.initialized = true;
     }
 
-    /**
-     *  Test only. Currently the function is private. Please change the visibility of 
-     *  VolOracleLib.getObservationIndexBeforeOrAtTarget() to internal and uncomment this function if you would like 
-     * to enable unit test.
     function getObservationIndexBeforeOrAtTarget(uint32 target) external view returns (uint256) {
         return oracleState.getObservationIndexBeforeOrAtTarget(target);
     }
-     */
 
     function calculateVol(uint32 target) external view returns (uint256) {
         return oracleState.calculateVol(target);

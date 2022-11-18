@@ -36,14 +36,13 @@ library VolOracleLib {
         uint256 timeEclapsed = uint256(endObservation.blockTimestamp - startObservation.blockTimestamp);
         uint256 tickAvg = uint256(uint56(endObservation.tickCumulative - startObservation.tickCumulative)) /
             timeEclapsed;
-        uint256 stddev = (tickSquareSum - tickAvg * tickAvg * timeEclapsed) / (timeEclapsed - 1);
-        return stddev;
+        return (tickSquareSum - tickAvg * tickAvg * timeEclapsed) / (timeEclapsed - 1);
     }
 
     // @dev get the obesrvation index right before or at the target timestamp, using binary search
     // @return the index of the observation which is before or at the target timestamp
     function getObservationIndexBeforeOrAtTarget(VolOracleState storage self, uint32 _target)
-        private
+        internal
         view
         returns (uint256 observationIndexAfterTarget)
     {

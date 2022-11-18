@@ -23,9 +23,6 @@ describe("Vol Oracle Library tests", () => {
     expect(await volOracleLibTest.observationSize()).to.equal(OBSERVATION_SIZE);
   });
 
-  /**
-   *  Test only. Currently the function is private. Please change the visibility of VolOracleLib.getObservationIndexBeforeOrAtTarget() to internal,
-   *  uncomment the function in VolOracleLibTest.sol and uncomment these tests if you would like to enable unit test.
   describe("Index Search", async function () {
     it("should return error when target is older than the oldest timestamp", async function () {
       await fakeVolOracleData(volOracleLibTest, 2, startTs);
@@ -61,7 +58,6 @@ describe("Vol Oracle Library tests", () => {
       });
     });
   });
-  */
 
   describe("Calculate Volatity", async function () {
     it("should calculate the correct vol when the price stays the same", async function () {

@@ -5,8 +5,6 @@ import { IUniswapV3Pool } from "@uniswap/v3-core/contracts/interfaces/IUniswapV3
 import { VolOracleLib } from "./VolOracleLib.sol";
 
 contract VolOracle {
-    // usiVolOracleLibary for VolOracleState;
-    using VolOracleLib for VolOracleLib.VolObservation;
     using VolOracleLib for VolOracleLib.VolOracleState;
 
     // observation size
