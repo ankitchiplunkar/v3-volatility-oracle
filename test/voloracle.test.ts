@@ -1,5 +1,6 @@
 import { FakeContract, smock } from "@defi-wonderland/smock";
 import { mine } from "@nomicfoundation/hardhat-network-helpers";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { abi as POOL_ABI } from "@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json";
 import chai from "chai";
@@ -25,7 +26,6 @@ describe("Vol Oracle tests", () => {
   let deployer: SignerWithAddress;
   let uniV3Pool: FakeContract<IUniswapV3Pool>;
   let volOracleFactory: VolOracle__factory;
-  const OBSERVATION_SIZE = 345600;
   const UNIV3_MAX_CARDINALITY = 65535;
   const maxFill = 500;
 
@@ -37,7 +37,6 @@ describe("Vol Oracle tests", () => {
   });
 
   it("tests constants", async () => {
-    expect(await volOracle.OBSERVATION_SIZE()).to.equal(OBSERVATION_SIZE);
     expect(await volOracle.UNIV3_MAX_CARDINALITY()).to.equal(UNIV3_MAX_CARDINALITY);
     expect(await volOracle.maxFill()).to.equal(maxFill);
   });
@@ -397,6 +396,48 @@ describe("Vol Oracle tests", () => {
       // fills third batch
       await volOracle.fillInObservations(uniV3Pool.address);
       await checkResult(uniV3Pool, volOracle, mockObservationIndex0, 3 * smallMaxFill, 1, startTs, tsGap);
+    });
+  });
+
+  describe("Get Volatility", function () {
+    const mockObservationIndex0 = 700;
+    let startTs: number;
+
+    beforeEach("Prepare Uni Pool and Vol Oracle", async function () {
+      startTs = (await getLatestTimestamp()) - mockObservationIndex0;
+    });
+
+    it("should get volatility correctly", async function () {
+      const observationGrowth: number = 3;
+      const tsGap = 3600 * 24; // 1 day
+
+      // tick [1, 1, 3]
+      const tickData = new Array(mockObservationIndex0 + 1 + observationGrowth);
+      for (let i = 0; i <= mockObservationIndex0; i++) {
+        tickData[i] = 1;
+      }
+      tickData[mockObservationIndex0 + 1] = 1;
+      tickData[mockObservationIndex0 + 2] = 1;
+      tickData[mockObservationIndex0 + 3] = 3;
+
+      await fakeObservationInitializationAndGrowth(
+        uniV3Pool,
+        volOracle,
+        mockObservationIndex0,
+        observationGrowth,
+        tickData,
+        startTs,
+        tsGap,
+      );
+
+      const ts0 = (await volOracle.getObservation(uniV3Pool.address, 0)).blockTimestamp;
+      await volOracle.fillInObservations(uniV3Pool.address);
+      const newTime = ts0 + tsGap + tsGap;
+
+      await time.setNextBlockTimestamp(newTime);
+      await mine();
+
+      expect(await volOracle.getVol(uniV3Pool.address, 1)).to.equal(2);
     });
   });
 });
