@@ -1,31 +1,41 @@
 // SPDX-License-Identifier
 pragma solidity >=0.8.4;
 
+/// @title Library to help calculate volatility between a UniV3 Pool
+/// @author Ankit Chiplunkar & Jing Fan
+/// @notice Helper functions and structs to calculate vlatility
 library VolOracleLib {
+    /// @notice Number of observations to store in the oracle, stores 30 days of data (with some buffer)
     uint256 public constant OBSERVATION_SIZE = 345600;
 
+    /// @notice Struct that stores a single observation
     struct VolObservation {
-        // the block timestamp of the observation
+        /// @dev the block timestamp of the observation
         uint32 blockTimestamp;
-        // the tick accumulator, i.e. tick * time elapsed since the pool was first initialized
+        /// @dev the tick accumulator, i.e. tick * time elapsed since the pool was first initialized
         int56 tickCumulative;
-        // the tick square accumulator, i.e. tick * tick * time elapsed since the oracle was first initialized
+        /// @dev the tick square accumulator, i.e. tick * tick * time elapsed since the oracle was first initialized
         uint112 tickSquareCumulative;
     }
 
+    /// @notice Struct that stores the accumulators and basic info for a pool
     struct VolOracleState {
         VolObservation[345600] observations;
-        // @dev Stores timestamp of the last uniswap observation which was filled in
+        /// @dev Stores timestamp of the last uniswap observation which was filled in
         uint256 lastBlockTimestamp;
-        // @dev last observation index in uniswap pool
+        /// @dev last observation index in uniswap pool
         uint256 lastCheckedUniswapObservationIndex;
-        // @dev observation index for volatility observations
+        /// @dev observation index for volatility observations
         uint256 observationIndex;
-        // @dev marked as true if the pool is initialized
+        /// @dev marked as true if the pool is initialized
         bool initialized;
     }
 
-    // @dev calculate the standdevation from startIndex to endIndex
+    /// @notice Calculates the volatility of a pool
+    /// @dev calculate the standdevation from VolOracleState struct and a target end timestamp
+    /// @param self VolOracleState array for a pool
+    /// @param target last timestamp from between which we need to calculate the volatility
+    /// @return stanDeviation standard deviation for the pool prices between the given time
     function calculateVol(VolOracleState storage self, uint32 target) internal view returns (uint256 stanDeviation) {
         uint256 startIndex = getObservationIndexBeforeOrAtTarget(self, target);
         uint256 endIndex = self.observationIndex;
@@ -39,8 +49,11 @@ library VolOracleLib {
         return (tickSquareSum - tickAvg * tickAvg * timeEclapsed) / (timeEclapsed - 1);
     }
 
-    // @dev get the obesrvation index right before or at the target timestamp, using binary search
-    // @return the index of the observation which is before or at the target timestamp
+    /// @notice Gets the index which lies before or at a target timestamp
+    /// @dev get the obesrvation index right before or at the target timestamp, using binary search
+    /// @param self VolOracleState array for a pool
+    /// @param _target last timestamp from between which we need to calculate the volatility
+    /// @return observationIndexAfterTarget the index of the observation which is before or at the target timestamp
     function getObservationIndexBeforeOrAtTarget(VolOracleState storage self, uint32 _target)
         internal
         view

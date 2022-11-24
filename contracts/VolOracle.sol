@@ -14,8 +14,6 @@ contract VolOracle {
     /*//////////////////////////////////////////////////////////////
                 CONSTANT VARIABLES
     //////////////////////////////////////////////////////////////*/
-    /// @notice Number of observations to store in the oracle, stores 30 days of data (with some buffer)
-    uint256 public constant UNIV3_MAX_CARDINALITY = 65535;
     /// @notice Number of minimum observations in the univ3 pool when initiazing a pool.
     /// @dev In eth mainnet 1000 cardinality means that SLA ~1-2 hrs
     uint256 public constant UNIV3_MIN_CARDINALITY = 1000;
