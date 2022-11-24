@@ -26,7 +26,7 @@ describe("Vol Oracle tests", () => {
   let deployer: SignerWithAddress;
   let uniV3Pool: FakeContract<IUniswapV3Pool>;
   let volOracleFactory: VolOracle__factory;
-  const UNIV3_MAX_CARDINALITY = 65535;
+  const UNIV3_MAX_CARDINALITY = 1000;
   const maxFill = 500;
 
   beforeEach("deploy contracts", async () => {
@@ -37,7 +37,7 @@ describe("Vol Oracle tests", () => {
   });
 
   it("tests constants", async () => {
-    expect(await volOracle.UNIV3_MAX_CARDINALITY()).to.equal(UNIV3_MAX_CARDINALITY);
+    expect(await volOracle.UNIV3_MIN_CARDINALITY()).to.equal(UNIV3_MAX_CARDINALITY);
     expect(await volOracle.maxFill()).to.equal(maxFill);
   });
 
