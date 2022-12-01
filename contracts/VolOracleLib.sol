@@ -54,11 +54,10 @@ library VolOracleLib {
     /// @param self VolOracleState array for a pool
     /// @param _target last timestamp from between which we need to calculate the volatility
     /// @return observationIndexAfterTarget the index of the observation which is before or at the target timestamp
-    function getObservationIndexBeforeOrAtTarget(VolOracleState storage self, uint32 _target)
-        internal
-        view
-        returns (uint256 observationIndexAfterTarget)
-    {
+    function getObservationIndexBeforeOrAtTarget(
+        VolOracleState storage self,
+        uint32 _target
+    ) internal view returns (uint256 observationIndexAfterTarget) {
         require(self.initialized, "the state has not been initialized");
         uint256 left = (self.observationIndex + 1) % OBSERVATION_SIZE; //oldest
         uint32 oldestTimestamp = self.observations[left].blockTimestamp;

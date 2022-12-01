@@ -1,7 +1,7 @@
 import { ethers } from "hardhat";
 
 async function main() {
-  const maxFill = 10;
+  const maxFill = 100;
 
   const VolOracle = await ethers.getContractFactory("VolOracle");
   const volOracle = await VolOracle.deploy(maxFill);
