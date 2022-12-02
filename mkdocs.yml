@@ -5,8 +5,6 @@ nav:
   - Development: development.md
 theme:
   name: material
-  logo: img/favicon.ico
-  favicon: img/favicon.ico
   features:
     - navigation.top
 extra_css:
