@@ -1,4 +1,4 @@
-# Time weighted standard deviation: Technical
+# Time weighted standard deviation
 
 ## Technical derivations
 
