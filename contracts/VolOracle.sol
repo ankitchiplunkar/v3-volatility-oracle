@@ -99,8 +99,17 @@ contract VolOracle {
     /// @notice Gets the standdevation given specified days range from now
     /// @param _pool address of the pool
     /// @param _daysToNow number of days to calculate the volatility
-    function getVol(address _pool, uint32 _daysToNow) public view returns (uint256 standardDeviation) {
+    function getVolByDays(address _pool, uint32 _daysToNow) public view returns (uint256 standardDeviation) {
         uint32 target = uint32(block.timestamp) - _daysToNow * uint32(1 days);
+
+        return oracleStates[_pool].calculateVol(target);
+    }
+
+    /// @notice Gets the standdevation given specified hours range from now
+    /// @param _pool address of the pool
+    /// @param _hoursToNow number of hours to calculate the volatility
+    function getVolByHours(address _pool, uint32 _hoursToNow) public view returns (uint256 standardDeviation) {
+        uint32 target = uint32(block.timestamp) - _hoursToNow * uint32(1 hours);
 
         return oracleStates[_pool].calculateVol(target);
     }
@@ -161,8 +170,7 @@ contract VolOracle {
 
             uint32 timeDelta = blockTimestamp - prevObservation.blockTimestamp;
             int56 tickDelta = tickCumulative - prevObservation.tickCumulative;
-            uint112 tickSquareDelta = uint112(int112((tickDelta / int56(uint56(timeDelta))) ** 2)) * timeDelta;
-
+            uint112 tickSquareDelta = uint112(int112((tickDelta / int56(uint56(timeDelta)))**2)) * timeDelta;
             volObservationIndex = (volObservationIndex + 1) % VolOracleLib.OBSERVATION_SIZE;
             volOracleState.observations[volObservationIndex] = VolOracleLib.VolObservation(
                 blockTimestamp,
