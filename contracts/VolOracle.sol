@@ -170,7 +170,7 @@ contract VolOracle {
 
             uint32 timeDelta = blockTimestamp - prevObservation.blockTimestamp;
             int56 tickDelta = tickCumulative - prevObservation.tickCumulative;
-            uint112 tickSquareDelta = uint112(int112((tickDelta / int56(uint56(timeDelta)))**2)) * timeDelta;
+            uint112 tickSquareDelta = uint112(int112((tickDelta / int56(uint56(timeDelta))) ** 2)) * timeDelta;
             volObservationIndex = (volObservationIndex + 1) % VolOracleLib.OBSERVATION_SIZE;
             volOracleState.observations[volObservationIndex] = VolOracleLib.VolObservation(
                 blockTimestamp,
