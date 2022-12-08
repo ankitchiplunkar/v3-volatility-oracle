@@ -26,6 +26,8 @@ contract VolOracle {
     /// @notice Stores tje volatility observation arrays for each pool
     mapping(address => VolOracleLib.VolOracleState) public oracleStates;
 
+    event FillInObservations(address indexed _pool, uint256 startIndex, uint256 endIndex);
+
     /*//////////////////////////////////////////////////////////////
                 CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -183,5 +185,7 @@ contract VolOracle {
 
         volOracleState.lastBlockTimestamp = uint256(lastBlockTimestamp);
         volOracleState.lastCheckedUniswapObservationIndex = endIndex % poolCardinality;
+
+        emit FillInObservations(_pool, startIndex, endIndex % poolCardinality);
     }
 }
