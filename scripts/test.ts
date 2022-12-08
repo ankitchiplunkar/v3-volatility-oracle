@@ -16,7 +16,7 @@ if (!alchemyApiKey) {
 const provider = new ethers.providers.JsonRpcProvider(`https://polygon-mainnet.g.alchemy.com/v2/${alchemyApiKey}`);
 
 const poolAddress = "0xa374094527e1673a86de625aa59517c5de346d32";
-const contractAddress = "0x2053b5A5667D31300b3F5b6d47046eD58028527b";
+const contractAddress = "0xd12090470A413405452F5C6FCC6a2CCC71Bd18E4";
 const contract = new ethers.Contract(contractAddress, VolOracleABI, provider);
 const privateKey: string | undefined = process.env.PRIVATE_KEY;
 
@@ -60,8 +60,13 @@ export async function getObservation(index: number) {
   };
 }
 
-export async function getVol(days: number) {
-  const vol = await contract.getVol(poolAddress, days);
+export async function getVolByDays(days: number) {
+  const vol = await contract.getVolByDays(poolAddress, days);
+  return vol.toNumber();
+}
+
+export async function getVolByHours(hours: number) {
+  const vol = await contract.getVolByHours(poolAddress, hours);
   return vol.toNumber();
 }
 
