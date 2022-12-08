@@ -342,6 +342,25 @@ describe("Vol Oracle tests", () => {
 
       await checkResult(uniV3Pool, volOracle, mockObservationIndex0, observationGrowth, tickData, startTs, tsGap);
     });
+
+    it("emit the event correctly", async function () {
+      const observationGrowth = 2;
+      const tsGap = 200;
+
+      await fakeObservationInitializationAndGrowth(
+        uniV3Pool,
+        volOracle,
+        mockObservationIndex0,
+        observationGrowth,
+        1,
+        startTs,
+        tsGap,
+      );
+
+      await expect(volOracle.fillInObservations(uniV3Pool.address))
+        .to.emit(volOracle, "FillInObservations")
+        .withArgs(uniV3Pool.address, mockObservationIndex0 + 1, mockObservationIndex0 + observationGrowth);
+    });
   });
 
   describe("Fill observations in batches", function () {
