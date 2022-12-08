@@ -407,7 +407,7 @@ describe("Vol Oracle tests", () => {
       startTs = (await getLatestTimestamp()) - mockObservationIndex0;
     });
 
-    it("should get volatility correctly", async function () {
+    it("should get volatility correctly by day", async function () {
       const observationGrowth: number = 3;
       const tsGap = 3600 * 24; // 1 day
 
@@ -437,7 +437,40 @@ describe("Vol Oracle tests", () => {
       await time.setNextBlockTimestamp(newTime);
       await mine();
 
-      expect(await volOracle.getVol(uniV3Pool.address, 1)).to.equal(2);
+      expect(await volOracle.getVolByDays(uniV3Pool.address, 1)).to.equal(2);
+    });
+
+    it("should get volatility correctly by hour", async function () {
+      const observationGrowth: number = 3;
+      const tsGap = 3600; // 1 hour
+
+      // tick [1, 1, 3]
+      const tickData = new Array(mockObservationIndex0 + 1 + observationGrowth);
+      for (let i = 0; i <= mockObservationIndex0; i++) {
+        tickData[i] = 1;
+      }
+      tickData[mockObservationIndex0 + 1] = 1;
+      tickData[mockObservationIndex0 + 2] = 1;
+      tickData[mockObservationIndex0 + 3] = 3;
+
+      await fakeObservationInitializationAndGrowth(
+        uniV3Pool,
+        volOracle,
+        mockObservationIndex0,
+        observationGrowth,
+        tickData,
+        startTs,
+        tsGap,
+      );
+
+      const ts0 = (await volOracle.getObservation(uniV3Pool.address, 0)).blockTimestamp;
+      await volOracle.fillInObservations(uniV3Pool.address);
+      const newTime = ts0 + tsGap + tsGap;
+
+      await time.setNextBlockTimestamp(newTime);
+      await mine();
+
+      expect(await volOracle.getVolByHours(uniV3Pool.address, 1)).to.equal(2);
     });
   });
 });
