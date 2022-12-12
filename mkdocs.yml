@@ -1,6 +1,7 @@
 site_name: Uniswap V3 Volatility Oracle docs
 nav:
   - Home: index.md
+  - How to use: howtouse.md
   - Technical: technical.md
   - Development: development.md
 theme:
