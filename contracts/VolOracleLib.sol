@@ -1,6 +1,8 @@
 // SPDX-License-Identifier
 pragma solidity >=0.8.4;
 
+import "@prb/math/src/UD60x18.sol";
+
 /// @title Library to help calculate volatility between a UniV3 Pool
 /// @author Ankit Chiplunkar & Jing Fan
 /// @notice Helper functions and structs to calculate vlatility
@@ -35,8 +37,11 @@ library VolOracleLib {
     /// @dev calculate the standdevation from VolOracleState struct and a target end timestamp
     /// @param self VolOracleState array for a pool
     /// @param target last timestamp from between which we need to calculate the volatility
-    /// @return stanDeviation standard deviation for the pool prices between the given time
-    function calculateVol(VolOracleState storage self, uint32 target) internal view returns (uint256 stanDeviation) {
+    /// @return standardDeviation standard deviation for the pool prices between the given time
+    function calculateVol(
+        VolOracleState storage self,
+        uint32 target
+    ) internal view returns (uint256 standardDeviation) {
         uint256 startIndex = getObservationIndexBeforeOrAtTarget(self, target);
         uint256 endIndex = self.observationIndex;
         require(startIndex != endIndex, "no new observations to calculate the volatility");
@@ -46,7 +51,7 @@ library VolOracleLib {
         uint256 timeEclapsed = uint256(endObservation.blockTimestamp - startObservation.blockTimestamp);
         uint256 tickAvg = uint256(uint56(endObservation.tickCumulative - startObservation.tickCumulative)) /
             timeEclapsed;
-        return (tickSquareSum - tickAvg * tickAvg * timeEclapsed) / (timeEclapsed - 1);
+        return fromUD60x18(toUD60x18((tickSquareSum - tickAvg * tickAvg * timeEclapsed) / (timeEclapsed - 1)).sqrt());
     }
 
     /// @notice Gets the index which lies before or at a target timestamp

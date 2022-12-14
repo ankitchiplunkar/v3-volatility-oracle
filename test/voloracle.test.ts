@@ -456,7 +456,7 @@ describe("Vol Oracle tests", () => {
       await time.setNextBlockTimestamp(newTime);
       await mine();
 
-      expect(await volOracle.getVolByDays(uniV3Pool.address, 1)).to.equal(2);
+      expect(await volOracle.getVolByDays(uniV3Pool.address, 1)).to.equal(1);
     });
 
     it("should get volatility correctly by hour", async function () {
@@ -489,7 +489,7 @@ describe("Vol Oracle tests", () => {
       await time.setNextBlockTimestamp(newTime);
       await mine();
 
-      expect(await volOracle.getVolByHours(uniV3Pool.address, 1)).to.equal(2);
+      expect(await volOracle.getVolByHours(uniV3Pool.address, 1)).to.equal(1);
     });
   });
 });

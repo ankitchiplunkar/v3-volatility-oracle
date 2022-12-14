@@ -81,7 +81,7 @@ describe("Vol Oracle Library tests", () => {
           [1, 1002, 1002],
           [2, 1005, 1011],
         ],
-        expected: 2,
+        expected: 1,
       },
       {
         args: [
@@ -89,7 +89,15 @@ describe("Vol Oracle Library tests", () => {
           [1, 1002, 1002],
           [2, 1006, 1018],
         ],
-        expected: 9,
+        expected: 3,
+      },
+      {
+        args: [
+          [0, 1001, 1001],
+          [1, 1002, 1010],
+          [2, 1006, 1050],
+        ],
+        expected: 6,
       },
     ];
 
