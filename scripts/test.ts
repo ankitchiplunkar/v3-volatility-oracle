@@ -16,7 +16,7 @@ if (!alchemyApiKey) {
 const provider = new ethers.providers.JsonRpcProvider(`https://polygon-mainnet.g.alchemy.com/v2/${alchemyApiKey}`);
 
 const poolAddress = "0xa374094527e1673a86de625aa59517c5de346d32";
-const contractAddress = "0xe26AcCE87E00C35BAc6e022835cf6CEF485A6fD4";
+const contractAddress = "0x60e2CB42DcBa04b8cb2ae657040B1B98852077A4";
 const contract = new ethers.Contract(contractAddress, VolOracleABI, provider);
 const privateKey: string | undefined = process.env.PRIVATE_KEY;
 
