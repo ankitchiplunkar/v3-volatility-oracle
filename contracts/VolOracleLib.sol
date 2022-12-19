@@ -49,8 +49,9 @@ library VolOracleLib {
         VolOracleLib.VolObservation memory endObservation = self.observations[endIndex];
         uint256 tickSquareSum = endObservation.tickSquareCumulative - startObservation.tickSquareCumulative;
         uint256 timeEclapsed = uint256(endObservation.blockTimestamp - startObservation.blockTimestamp);
-        int256 tickAvg = (endObservation.tickCumulative - startObservation.tickCumulative) / int256(timeEclapsed);
-        uint256 variance = (tickSquareSum - uint256(tickAvg * tickAvg) * timeEclapsed) / (timeEclapsed - 1);
+        int256 tickCumulativeDelta = endObservation.tickCumulative - startObservation.tickCumulative;
+        uint256 variance = (tickSquareSum - uint256(tickCumulativeDelta * tickCumulativeDelta) / timeEclapsed) /
+            (timeEclapsed - 1);
         return fromUD60x18(toUD60x18(variance).sqrt());
     }
 

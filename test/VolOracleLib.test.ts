@@ -89,7 +89,7 @@ describe("Vol Oracle Library tests", () => {
           [1, 1002, 1002],
           [2, 1006, 1018],
         ],
-        expected: 3,
+        expected: 2,
       },
       {
         args: [
@@ -232,7 +232,7 @@ describe("Vol Oracle Library tests", () => {
           [1671405257, -8637984181884, 92200301054234],
           [1671405261, -8637985295064, 92510093482334],
         ],
-        expected: 646,
+        expected: 30,
       },
       {
         args: [
@@ -248,7 +248,7 @@ describe("Vol Oracle Library tests", () => {
           [1671414713, -8640616129740, 18280535205906],
           [1671414767, -8640631159344, 22463664768810],
         ],
-        expected: 62,
+        expected: 5,
       },
     ];
 
