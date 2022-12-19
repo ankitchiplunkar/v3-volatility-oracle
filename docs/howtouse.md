@@ -42,4 +42,4 @@ Finally, a downstream contract can just call the [`getVolByHours`](https://githu
 
 Yes!
 
-The [volatility contract](https://app.gelato.network/task/0xc846f25da923971488b03c980db60d2a2f3d9a917dec481300e3740f4a78cac3?chainId=137) is already live for ETH-Matic pair on polygon.
+The [volatility contract](https://app.gelato.network/task/0x70159e5218025e38196a8a80d8f873a007e49363b75a6acac2c9087d6acd5df3?chainId=137) is already live for ETH-Matic pair on polygon.
