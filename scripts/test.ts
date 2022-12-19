@@ -16,7 +16,7 @@ if (!alchemyApiKey) {
 const provider = new ethers.providers.JsonRpcProvider(`https://polygon-mainnet.g.alchemy.com/v2/${alchemyApiKey}`);
 
 const poolAddress = "0xa374094527e1673a86de625aa59517c5de346d32";
-const contractAddress = "0xd12090470A413405452F5C6FCC6a2CCC71Bd18E4";
+const contractAddress = "0xe26AcCE87E00C35BAc6e022835cf6CEF485A6fD4";
 const contract = new ethers.Contract(contractAddress, VolOracleABI, provider);
 const privateKey: string | undefined = process.env.PRIVATE_KEY;
 
@@ -58,6 +58,23 @@ export async function getObservation(index: number) {
     tickCumulative: observation.tickCumulative.toNumber(),
     tickSquareCumulative: observation.tickSquareCumulative.toNumber(),
   };
+}
+
+export async function getAllObservations() {
+  const oracleState = await contract.oracleStates(poolAddress);
+  const observationIndex = oracleState.observationIndex.toNumber();
+  const observations: [number, number, number][] = new Array(observationIndex + 1);
+  for (let i = 0; i <= observationIndex; i++) {
+    const observation = await contract.getObservation(poolAddress, i);
+
+    observations[i] = [
+      observation.blockTimestamp,
+      observation.tickCumulative.toNumber(),
+      observation.tickSquareCumulative.toNumber(),
+    ];
+  }
+
+  return observations;
 }
 
 export async function getVolByDays(days: number) {

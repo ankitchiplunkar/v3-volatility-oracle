@@ -234,13 +234,29 @@ describe("Vol Oracle Library tests", () => {
         ],
         expected: 646,
       },
+      {
+        args: [
+          [1671414477, -8640550447122, 0],
+          [1671414575, -8640577721796, 7590896344962],
+          [1671414631, -8640593307380, 11928582570338],
+          [1671414649, -8640598317050, 13322848876388],
+          [1671414655, -8640599986946, 13787607651524],
+          [1671414661, -8640601656854, 14252373106268],
+          [1671414673, -8640604996706, 15181924054760],
+          [1671414675, -8640605553352, 15336851439418],
+          [1671414685, -8640608336612, 16111505062178],
+          [1671414713, -8640616129740, 18280535205906],
+          [1671414767, -8640631159344, 22463664768810],
+        ],
+        expected: 62,
+      },
     ];
 
     tests.forEach(({ args, expected }) => {
       it(`should calculate the correct vol`, async function () {
-        await fakeVolOracleData(volOracleLibTest, 100, 0, args);
+        await fakeVolOracleData(volOracleLibTest, args.length, 0, args);
 
-        const vol = await volOracleLibTest.calculateVol(1671404067);
+        const vol = await volOracleLibTest.calculateVol(args[0][0]);
         expect(vol).to.equal(expected);
       });
     });
