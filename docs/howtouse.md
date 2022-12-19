@@ -42,4 +42,4 @@ Finally, a downstream contract can just call the [`getVolByHours`](https://githu
 
 Yes!
 
-The [volatility contract](https://polygonscan.com/address/0xd12090470a413405452f5c6fcc6a2ccc71bd18e4#events) is already live for ETH-Matic pair on polygon.
+The [volatility contract](https://polygonscan.com/address/0x60e2CB42DcBa04b8cb2ae657040B1B98852077A4#events) is already live for ETH-Matic pair on polygon.
